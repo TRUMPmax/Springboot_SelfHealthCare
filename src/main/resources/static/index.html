@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人健康管理与疾病预警系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script defer src="/app.js"></script>
+</head>
+<body>
+<div class="bg-orb orb-left"></div>
+<div class="bg-orb orb-right"></div>
+
+<div class="page-shell">
+    <header class="hero">
+        <div class="hero-copy">
+            <span class="eyebrow">Spring Boot · Family Health Insight</span>
+            <h1>个人健康管理与疾病预警系统</h1>
+            <p>
+                面向个人与家庭成员的健康管理后台，覆盖健康档案、持续记录、趋势追踪、
+                风险预警与按需触发的 AI 健康咨询。
+            </p>
+            <div class="hero-actions">
+                <button class="primary-btn" id="quickCreateProfile" type="button">新增成员档案</button>
+                <button class="secondary-btn" id="quickCreateRecord" type="button">录入健康记录</button>
+            </div>
+        </div>
+        <div class="hero-side">
+            <article class="hero-card">
+                <span>系统特点</span>
+                <strong>档案 + 趋势 + AI 咨询</strong>
+                <p>点击患者档案可查看近期变化、个性化建议与最近预警。</p>
+            </article>
+            <article class="hero-card accent">
+                <span>AI 使用策略</span>
+                <strong>只有手动点击才会调用 DeepSeek</strong>
+                <p>默认不会自动消耗 token，便于按需触发分析与建议。</p>
+            </article>
+        </div>
+    </header>
+
+    <nav class="section-nav">
+        <a href="#dashboardSection">健康总览</a>
+        <a href="#profilesSection">成员档案</a>
+        <a href="#recordsSection">健康记录</a>
+        <a href="#alertsSection">预警中心</a>
+    </nav>
+
+    <main class="content-grid">
+        <section class="panel" id="dashboardSection">
+            <div class="section-heading">
+                <div>
+                    <h2>健康总览</h2>
+                    <p>查看系统指标、风险分布和最近动态。</p>
+                </div>
+                <button class="ghost-btn" id="refreshDashboard" type="button">刷新数据</button>
+            </div>
+
+            <div class="metric-grid">
+                <article class="metric-card">
+                    <span>成员档案</span>
+                    <strong id="metricProfiles">0</strong>
+                </article>
+                <article class="metric-card">
+                    <span>健康记录</span>
+                    <strong id="metricRecords">0</strong>
+                </article>
+                <article class="metric-card warning">
+                    <span>待处理预警</span>
+                    <strong id="metricPendingAlerts">0</strong>
+                </article>
+                <article class="metric-card accent">
+                    <span>高风险记录</span>
+                    <strong id="metricHighRisk">0</strong>
+                </article>
+            </div>
+
+            <div class="dashboard-columns">
+                <article class="sub-panel">
+                    <div class="section-heading compact">
+                        <div>
+                            <h3>风险分布</h3>
+                            <p>按系统评估结果聚合。</p>
+                        </div>
+                    </div>
+                    <div class="risk-distribution" id="riskDistribution"></div>
+                </article>
+
+                <article class="sub-panel">
+                    <div class="section-heading compact">
+                        <div>
+                            <h3>系统说明</h3>
+                            <p>适合课程设计、毕设演示和原型扩展。</p>
+                        </div>
+                    </div>
+                    <div class="note-stack">
+                        <div class="note-card">
+                            <strong>成员视角</strong>
+                            <p>支持本人、父母、配偶、子女等家庭成员分别建档管理。</p>
+                        </div>
+                        <div class="note-card">
+                            <strong>趋势追踪</strong>
+                            <p>围绕体重、血压、血糖、睡眠、运动和风险分数持续观察变化。</p>
+                        </div>
+                        <div class="note-card">
+                            <strong>AI 咨询</strong>
+                            <p>用户主动点击后，系统才会调用 DeepSeek 进行中文分析与建议。</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="dashboard-columns">
+                <article class="sub-panel">
+                    <div class="section-heading compact">
+                        <div>
+                            <h3>最近健康记录</h3>
+                            <p>展示最新录入的 5 条指标。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>姓名</th>
+                                <th>血压</th>
+                                <th>空腹血糖</th>
+                                <th>BMI</th>
+                                <th>风险等级</th>
+                            </tr>
+                            </thead>
+                            <tbody id="recentRecordsBody"></tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="sub-panel">
+                    <div class="section-heading compact">
+                        <div>
+                            <h3>最近预警</h3>
+                            <p>重点关注待处理风险。</p>
+                        </div>
+                    </div>
+                    <div class="alert-feed" id="recentAlertsFeed"></div>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel" id="profilesSection">
+            <div class="section-heading">
+                <div>
+                    <h2>成员档案</h2>
+                    <p>让个体和家人的基础健康信息、慢病史和生活方式沉淀下来。</p>
+                </div>
+                <button class="primary-btn" id="openProfileModalBtn" type="button">新增档案</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>姓名 / 关系</th>
+                        <th>基础信息</th>
+                        <th>生活方式</th>
+                        <th>慢病与用药</th>
+                        <th>联系方式</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="profileTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel" id="recordsSection">
+            <div class="section-heading">
+                <div>
+                    <h2>健康记录</h2>
+                    <p>跟踪体征、生活方式和症状变化，为趋势分析提供依据。</p>
+                </div>
+                <button class="primary-btn" id="openRecordModalBtn" type="button">新增记录</button>
+            </div>
+
+            <div class="toolbar">
+                <label>
+                    档案筛选
+                    <select id="recordProfileFilter"></select>
+                </label>
+                <label>
+                    风险筛选
+                    <select id="recordRiskFilter"></select>
+                </label>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>姓名</th>
+                        <th>血压</th>
+                        <th>血糖</th>
+                        <th>体重 / 腰围</th>
+                        <th>睡眠 / 运动</th>
+                        <th>风险</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="recordTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel" id="alertsSection">
+            <div class="section-heading">
+                <div>
+                    <h2>预警中心</h2>
+                    <p>追踪自动识别的健康风险，并维护处理状态。</p>
+                </div>
+                <button class="ghost-btn" id="refreshAlertsBtn" type="button">刷新预警</button>
+            </div>
+
+            <div class="toolbar">
+                <label>
+                    档案筛选
+                    <select id="alertProfileFilter"></select>
+                </label>
+                <label>
+                    状态筛选
+                    <select id="alertStatusFilter"></select>
+                </label>
+                <label>
+                    严重级别
+                    <select id="alertSeverityFilter"></select>
+                </label>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>姓名</th>
+                        <th>预警标题</th>
+                        <th>指标说明</th>
+                        <th>严重级别</th>
+                        <th>处理状态</th>
+                        <th>建议</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="alertTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div class="modal" id="profileModal" hidden>
+    <div class="modal-panel">
+        <div class="modal-header">
+            <div>
+                <h3 id="profileModalTitle">新增成员档案</h3>
+                <p>补充更完整的个人信息、慢病背景与生活方式。</p>
+            </div>
+            <button class="icon-btn" type="button" data-close-modal="profileModal">×</button>
+        </div>
+
+        <form id="profileForm" class="form-grid">
+            <label>
+                姓名
+                <input id="profileName" name="fullName" type="text" required>
+            </label>
+            <label>
+                与本人关系
+                <input id="profileRelationToUser" name="relationToUser" type="text" placeholder="例如：本人、父亲、母亲">
+            </label>
+            <label>
+                性别
+                <select id="profileGender" name="gender" required>
+                    <option value="MALE">男</option>
+                    <option value="FEMALE">女</option>
+                    <option value="OTHER">其他</option>
+                </select>
+            </label>
+            <label>
+                年龄
+                <input id="profileAge" name="age" type="number" min="1" max="120" required>
+            </label>
+            <label>
+                出生日期
+                <input id="profileBirthDate" name="birthDate" type="date">
+            </label>
+            <label>
+                血型
+                <select id="profileBloodType" name="bloodType"></select>
+            </label>
+            <label>
+                手机号
+                <input id="profilePhone" name="phone" type="text">
+            </label>
+            <label>
+                邮箱
+                <input id="profileEmail" name="email" type="email">
+            </label>
+            <label>
+                职业
+                <input id="profileOccupation" name="occupation" type="text">
+            </label>
+            <label>
+                身高(cm)
+                <input id="profileHeight" name="heightCm" type="number" step="0.01" min="50" max="250">
+            </label>
+            <label>
+                体重(kg)
+                <input id="profileWeight" name="weightKg" type="number" step="0.01" min="20" max="300">
+            </label>
+            <label>
+                吸烟情况
+                <select id="profileSmokingStatus" name="smokingStatus"></select>
+            </label>
+            <label>
+                饮酒情况
+                <select id="profileAlcoholUseStatus" name="alcoholUseStatus"></select>
+            </label>
+            <label>
+                紧急联系人
+                <input id="profileEmergencyContact" name="emergencyContact" type="text">
+            </label>
+            <label>
+                联系人电话
+                <input id="profileEmergencyContactPhone" name="emergencyContactPhone" type="text">
+            </label>
+            <label class="full-width">
+                家族病史
+                <textarea id="profileFamilyHistory" name="familyHistory" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                慢性病史
+                <textarea id="profileChronicDiseases" name="chronicDiseases" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                当前用药
+                <textarea id="profileCurrentMedications" name="currentMedications" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                手术史
+                <textarea id="profileSurgeryHistory" name="surgeryHistory" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                过敏信息
+                <textarea id="profileAllergies" name="allergies" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                运动习惯
+                <textarea id="profileExerciseHabit" name="exerciseHabit" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                健康目标
+                <textarea id="profileCareGoals" name="careGoals" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                备注
+                <textarea id="profileNotes" name="notes" rows="3"></textarea>
+            </label>
+
+            <div class="modal-actions full-width">
+                <button class="ghost-btn" type="button" data-close-modal="profileModal">取消</button>
+                <button class="primary-btn" type="submit">保存档案</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="recordModal" hidden>
+    <div class="modal-panel">
+        <div class="modal-header">
+            <div>
+                <h3 id="recordModalTitle">新增健康记录</h3>
+                <p>记录得越连续，趋势分析和建议就越准确。</p>
+            </div>
+            <button class="icon-btn" type="button" data-close-modal="recordModal">×</button>
+        </div>
+
+        <form id="recordForm" class="form-grid">
+            <label>
+                对应档案
+                <select id="recordProfileId" name="profileId" required></select>
+            </label>
+            <label>
+                记录日期
+                <input id="recordDate" name="recordDate" type="date" required>
+            </label>
+            <label>
+                当前体重(kg)
+                <input id="recordWeight" name="weightKg" type="number" step="0.01" min="20" max="300">
+            </label>
+            <label>
+                腰围(cm)
+                <input id="recordWaistCircumference" name="waistCircumferenceCm" type="number" step="0.01" min="40" max="200">
+            </label>
+            <label>
+                收缩压
+                <input id="recordSystolic" name="systolicPressure" type="number" min="40" max="250">
+            </label>
+            <label>
+                舒张压
+                <input id="recordDiastolic" name="diastolicPressure" type="number" min="30" max="180">
+            </label>
+            <label>
+                心率
+                <input id="recordHeartRate" name="heartRate" type="number" min="30" max="220">
+            </label>
+            <label>
+                空腹血糖
+                <input id="recordBloodSugar" name="fastingBloodSugar" type="number" step="0.01" min="2" max="30">
+            </label>
+            <label>
+                餐后血糖
+                <input id="recordPostprandialBloodSugar" name="postprandialBloodSugar" type="number" step="0.01" min="2" max="30">
+            </label>
+            <label>
+                体温
+                <input id="recordTemperature" name="bodyTemperature" type="number" step="0.1" min="34" max="43">
+            </label>
+            <label>
+                血氧(%)
+                <input id="recordOxygen" name="bloodOxygen" type="number" step="0.1" min="70" max="100">
+            </label>
+            <label>
+                总胆固醇
+                <input id="recordCholesterol" name="cholesterolTotal" type="number" step="0.01" min="2" max="15">
+            </label>
+            <label>
+                睡眠时长(h)
+                <input id="recordSleepHours" name="sleepHours" type="number" step="0.1" min="0" max="24">
+            </label>
+            <label>
+                运动时长(分钟)
+                <input id="recordExerciseMinutes" name="exerciseMinutes" type="number" min="0" max="1440">
+            </label>
+            <label>
+                步数
+                <input id="recordStepsCount" name="stepsCount" type="number" min="0" max="100000">
+            </label>
+            <label>
+                饮水量(ml)
+                <input id="recordWaterIntakeMl" name="waterIntakeMl" type="number" min="0" max="10000">
+            </label>
+            <label>
+                压力等级(1-10)
+                <input id="recordStressLevel" name="stressLevel" type="number" min="1" max="10">
+            </label>
+            <label>
+                情绪评分(1-10)
+                <input id="recordMoodScore" name="moodScore" type="number" min="1" max="10">
+            </label>
+            <label class="full-width">
+                当前症状
+                <textarea id="recordSymptoms" name="symptoms" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                用药记录
+                <textarea id="recordMedicationTaken" name="medicationTaken" rows="2"></textarea>
+            </label>
+            <label class="full-width">
+                备注
+                <textarea id="recordNotes" name="notes" rows="3"></textarea>
+            </label>
+
+            <div class="modal-actions full-width">
+                <button class="ghost-btn" type="button" data-close-modal="recordModal">取消</button>
+                <button class="primary-btn" type="submit">保存记录</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="alertModal" hidden>
+    <div class="modal-panel small">
+        <div class="modal-header">
+            <div>
+                <h3>更新预警状态</h3>
+                <p>记录处理进展，便于后续回顾。</p>
+            </div>
+            <button class="icon-btn" type="button" data-close-modal="alertModal">×</button>
+        </div>
+
+        <form id="alertForm" class="form-grid">
+            <label class="full-width">
+                处理状态
+                <select id="alertStatus" name="status" required>
+                    <option value="PENDING">待处理</option>
+                    <option value="REVIEWED">已查看</option>
+                    <option value="RESOLVED">已处置</option>
+                </select>
+            </label>
+            <label class="full-width">
+                处理说明
+                <textarea id="alertHandledNote" name="handledNote" rows="4"></textarea>
+            </label>
+
+            <div class="modal-actions full-width">
+                <button class="ghost-btn" type="button" data-close-modal="alertModal">取消</button>
+                <button class="primary-btn" type="submit">保存状态</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="profileDetailModal" hidden>
+    <div class="modal-panel detail-modal-panel">
+        <div class="modal-header">
+            <div>
+                <h3 id="detailName">成员档案详情</h3>
+                <p id="detailSubtitle">查看持续追踪、预警和 AI 分析。</p>
+            </div>
+            <button class="icon-btn" type="button" data-close-modal="profileDetailModal">×</button>
+        </div>
+
+        <div class="detail-hero" id="detailHeaderCards"></div>
+
+        <div class="detail-layout">
+            <article class="sub-panel">
+                <div class="section-heading compact">
+                    <div>
+                        <h3>基础档案</h3>
+                        <p>用于理解患者背景与生活方式。</p>
+                    </div>
+                </div>
+                <div class="info-grid" id="detailProfileGrid"></div>
+            </article>
+
+            <article class="sub-panel">
+                <div class="section-heading compact">
+                    <div>
+                        <h3>个性化建议</h3>
+                        <p>根据当前风险和近期趋势生成。</p>
+                    </div>
+                </div>
+                <ul class="suggestion-list" id="detailSuggestions"></ul>
+            </article>
+        </div>
+
+        <article class="sub-panel">
+            <div class="section-heading compact">
+                <div>
+                    <h3>近期趋势追踪</h3>
+                    <p>重点观察体重、血压、血糖、睡眠、运动和风险分数。</p>
+                </div>
+            </div>
+            <div class="trend-grid" id="trendGrid"></div>
+        </article>
+
+        <div class="detail-layout">
+            <article class="sub-panel">
+                <div class="section-heading compact">
+                    <div>
+                        <h3>最新健康快照</h3>
+                        <p>当前最值得关注的一次记录。</p>
+                    </div>
+                </div>
+                <div class="latest-metrics" id="latestMetrics"></div>
+            </article>
+
+            <article class="sub-panel">
+                <div class="section-heading compact">
+                    <div>
+                        <h3>最近预警</h3>
+                        <p>快速查看待处理与已触发风险。</p>
+                    </div>
+                </div>
+                <div class="alert-feed" id="detailAlertsFeed"></div>
+            </article>
+        </div>
+
+        <article class="sub-panel">
+            <div class="section-heading compact">
+                <div>
+                    <h3>近期记录</h3>
+                    <p>用于回顾持续变化。</p>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>血压</th>
+                        <th>血糖</th>
+                        <th>睡眠</th>
+                        <th>运动</th>
+                        <th>风险</th>
+                    </tr>
+                    </thead>
+                    <tbody id="detailRecordsBody"></tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="sub-panel">
+            <div class="section-heading compact">
+                <div>
+                    <h3>AI 健康咨询</h3>
+                    <p>不会自动调用。只有点击下方按钮时，才会请求 DeepSeek。</p>
+                </div>
+            </div>
+
+            <div class="consult-box">
+                <label class="full-width">
+                    补充问题（可选）
+                    <textarea id="aiQuestion" rows="3" placeholder="例如：最近血糖和睡眠变化说明了什么？接下来应该怎么调节？"></textarea>
+                </label>
+                <div class="consult-actions">
+                    <button class="primary-btn" id="triggerAiConsultation" type="button">调用 AI 分析</button>
+                    <span class="muted-text" id="aiConsultationHint">适合在查看某位成员详情后主动触发。</span>
+                </div>
+                <div class="ai-response" id="aiResponseBox">
+                    <div class="empty-state">尚未发起 AI 咨询。</div>
+                </div>
+            </div>
+        </article>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</body>
+</html>
