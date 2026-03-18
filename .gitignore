@@ -1,6 +1,7 @@
 HELP.md
 target/
 data/
+/config/application.properties
 starter_tmp/
 starter.zip
 基于SpringBoot的个人健康管理与疾病预警系统.doc

@@ -44,10 +44,14 @@ const enumLabels = {
 
 const state = {
     profiles: [],
+    profilesPage: 1,
+    profilesPageSize: 10,
     records: [],
+    recordsPage: 1,
+    recordsPageSize: 10,
     alerts: [],
     alertsPage: 1,
-    alertsPageSize: 6,
+    alertsPageSize: 10,
     dashboard: null,
     editingProfileId: null,
     editingRecordId: null,
@@ -63,6 +67,7 @@ const modalIds = ["profileModal", "recordModal", "alertModal", "profileDetailMod
 
 document.addEventListener("DOMContentLoaded", () => {
     cacheElements();
+    applyStaticCopyOverrides();
     bindEvents();
     populateStaticOptions();
     resetProfileForm();
@@ -80,7 +85,15 @@ function cacheElements() {
         "recentRecordsBody",
         "recentAlertsFeed",
         "profileTableBody",
+        "profilesPagination",
+        "profilePageInfo",
+        "profilePrevPage",
+        "profileNextPage",
         "recordTableBody",
+        "recordsPagination",
+        "recordPageInfo",
+        "recordPrevPage",
+        "recordNextPage",
         "alertTableBody",
         "recordProfileFilter",
         "recordRiskFilter",
@@ -165,6 +178,30 @@ function cacheElements() {
     });
 }
 
+function applyStaticCopyOverrides() {
+    const aiSectionDescription = elements.triggerAiConsultation
+        ?.closest(".sub-panel")
+        ?.querySelector(".section-heading p");
+
+    if (aiSectionDescription) {
+        aiSectionDescription.textContent = "结合档案和近期记录生成分析建议。";
+    }
+
+    elements.triggerAiConsultation.textContent = "生成 AI 分析";
+    elements.aiConsultationHint.textContent = "可补充具体问题。";
+    elements.aiResponseBox.innerHTML = `<div class="empty-state">点击“生成 AI 分析”查看建议。</div>`;
+
+    elements.profilePrevPage.textContent = "上一页";
+    elements.profileNextPage.textContent = "下一页";
+    elements.recordPrevPage.textContent = "上一页";
+    elements.recordNextPage.textContent = "下一页";
+    elements.alertPrevPage.textContent = "上一页";
+    elements.alertNextPage.textContent = "下一页";
+    elements.profilePageInfo.textContent = "第 1 / 1 页";
+    elements.recordPageInfo.textContent = "第 1 / 1 页";
+    elements.alertPageInfo.textContent = "第 1 / 1 页";
+}
+
 function bindEvents() {
     document.getElementById("quickCreateProfile").addEventListener("click", () => openProfileModal());
     document.getElementById("quickCreateRecord").addEventListener("click", () => openRecordModal());
@@ -181,11 +218,15 @@ function bindEvents() {
     elements.alertForm.addEventListener("submit", handleAlertSubmit);
     elements.triggerAiConsultation.addEventListener("click", () => triggerAiConsultation().catch(handleError));
 
-    elements.recordProfileFilter.addEventListener("change", () => loadRecords().catch(handleError));
-    elements.recordRiskFilter.addEventListener("change", () => loadRecords().catch(handleError));
+    elements.recordProfileFilter.addEventListener("change", () => resetRecordsPageAndReload());
+    elements.recordRiskFilter.addEventListener("change", () => resetRecordsPageAndReload());
     elements.alertProfileFilter.addEventListener("change", () => resetAlertsPageAndReload());
     elements.alertStatusFilter.addEventListener("change", () => resetAlertsPageAndReload());
     elements.alertSeverityFilter.addEventListener("change", () => resetAlertsPageAndReload());
+    elements.profilePrevPage.addEventListener("click", () => changeProfilesPage(-1));
+    elements.profileNextPage.addEventListener("click", () => changeProfilesPage(1));
+    elements.recordPrevPage.addEventListener("click", () => changeRecordsPage(-1));
+    elements.recordNextPage.addEventListener("click", () => changeRecordsPage(1));
     elements.alertPrevPage.addEventListener("click", () => changeAlertsPage(-1));
     elements.alertNextPage.addEventListener("click", () => changeAlertsPage(1));
 
@@ -259,6 +300,10 @@ async function loadDashboard() {
 
 async function loadProfiles() {
     state.profiles = await fetchJson("/api/profiles");
+    state.profilesPage = normalizePage(state.profilesPage, state.profiles.length, state.profilesPageSize);
+    if (state.profiles.length === 0) {
+        elements.profilesPagination.hidden = true;
+    }
     renderProfiles();
     populateProfileOptions();
 
@@ -281,6 +326,10 @@ async function loadRecords() {
 
     const query = params.toString() ? `?${params.toString()}` : "";
     state.records = await fetchJson(`/api/records${query}`);
+    state.recordsPage = normalizePage(state.recordsPage, state.records.length, state.recordsPageSize);
+    if (state.records.length === 0) {
+        elements.recordsPagination.hidden = true;
+    }
     renderRecords();
 }
 
@@ -298,10 +347,7 @@ async function loadAlerts() {
 
     const query = params.toString() ? `?${params.toString()}` : "";
     state.alerts = await fetchJson(`/api/alerts${query}`);
-    const totalPages = getAlertsTotalPages();
-    if (state.alertsPage > totalPages) {
-        state.alertsPage = totalPages;
-    }
+    state.alertsPage = normalizePage(state.alertsPage, state.alerts.length, state.alertsPageSize);
     renderAlerts();
 }
 
@@ -392,7 +438,7 @@ function renderProfiles() {
         return;
     }
 
-    elements.profileTableBody.innerHTML = state.profiles.map((profile) => `
+    elements.profileTableBody.innerHTML = getCurrentProfilePageItems().map((profile) => `
         <tr>
             <td>
                 <button class="table-link" type="button" data-action="view-profile" data-id="${profile.id}">
@@ -412,6 +458,8 @@ function renderProfiles() {
             </td>
         </tr>
     `).join("");
+
+    renderProfilesPagination();
 }
 
 function renderRecords() {
@@ -420,7 +468,7 @@ function renderRecords() {
         return;
     }
 
-    elements.recordTableBody.innerHTML = state.records.map((record) => `
+    elements.recordTableBody.innerHTML = getCurrentRecordPageItems().map((record) => `
         <tr>
             <td>${formatDate(record.recordDate)}</td>
             <td>${renderProfileLink(record.profile)}</td>
@@ -437,6 +485,8 @@ function renderRecords() {
             </td>
         </tr>
     `).join("");
+
+    renderRecordsPagination();
 }
 
 function renderAlerts() {
@@ -472,6 +522,31 @@ function resetAlertsPageAndReload() {
     loadAlerts().catch(handleError);
 }
 
+function resetRecordsPageAndReload() {
+    state.recordsPage = 1;
+    loadRecords().catch(handleError);
+}
+
+function changeProfilesPage(offset) {
+    const nextPage = state.profilesPage + offset;
+    const totalPages = getProfilesTotalPages();
+    if (nextPage < 1 || nextPage > totalPages) {
+        return;
+    }
+    state.profilesPage = nextPage;
+    renderProfiles();
+}
+
+function changeRecordsPage(offset) {
+    const nextPage = state.recordsPage + offset;
+    const totalPages = getRecordsTotalPages();
+    if (nextPage < 1 || nextPage > totalPages) {
+        return;
+    }
+    state.recordsPage = nextPage;
+    renderRecords();
+}
+
 function changeAlertsPage(offset) {
     const nextPage = state.alertsPage + offset;
     const totalPages = getAlertsTotalPages();
@@ -482,16 +557,66 @@ function changeAlertsPage(offset) {
     renderAlerts();
 }
 
+function getProfilesTotalPages() {
+    return getTotalPages(state.profiles.length, state.profilesPageSize);
+}
+
+function getCurrentProfilePageItems() {
+    return paginateItems(state.profiles, state.profilesPage, state.profilesPageSize);
+}
+
+function renderProfilesPagination() {
+    renderPaginationBar({
+        container: elements.profilesPagination,
+        infoElement: elements.profilePageInfo,
+        prevButton: elements.profilePrevPage,
+        nextButton: elements.profileNextPage,
+        page: state.profilesPage,
+        totalItems: state.profiles.length,
+        pageSize: state.profilesPageSize
+    });
+}
+
+function getRecordsTotalPages() {
+    return getTotalPages(state.records.length, state.recordsPageSize);
+}
+
+function getCurrentRecordPageItems() {
+    return paginateItems(state.records, state.recordsPage, state.recordsPageSize);
+}
+
+function renderRecordsPagination() {
+    renderPaginationBar({
+        container: elements.recordsPagination,
+        infoElement: elements.recordPageInfo,
+        prevButton: elements.recordPrevPage,
+        nextButton: elements.recordNextPage,
+        page: state.recordsPage,
+        totalItems: state.records.length,
+        pageSize: state.recordsPageSize
+    });
+}
+
 function getAlertsTotalPages() {
-    return Math.max(1, Math.ceil(state.alerts.length / state.alertsPageSize));
+    return getTotalPages(state.alerts.length, state.alertsPageSize);
 }
 
 function getCurrentAlertPageItems() {
-    const startIndex = (state.alertsPage - 1) * state.alertsPageSize;
-    return state.alerts.slice(startIndex, startIndex + state.alertsPageSize);
+    return paginateItems(state.alerts, state.alertsPage, state.alertsPageSize);
 }
 
 function renderAlertsPagination() {
+    renderPaginationBar({
+        container: elements.alertsPagination,
+        infoElement: elements.alertPageInfo,
+        prevButton: elements.alertPrevPage,
+        nextButton: elements.alertNextPage,
+        page: state.alertsPage,
+        totalItems: state.alerts.length,
+        pageSize: state.alertsPageSize
+    });
+    return;
+
     const totalItems = state.alerts.length;
     const totalPages = getAlertsTotalPages();
 
@@ -520,6 +645,8 @@ async function openProfileDetail(profileId, options = {}) {
     renderAiResponse();
     elements.aiQuestion.value = "";
     elements.aiConsultationHint.textContent = "仅在你主动点击按钮时才会调用 DeepSeek。";
+
+    elements.aiConsultationHint.textContent = "可补充具体问题后再分析。";
 
     if (!options.keepOpen) {
         openModal("profileDetailModal");
@@ -755,6 +882,9 @@ async function triggerAiConsultation() {
         showToast("AI 健康分析已生成。");
     } finally {
         state.aiLoading = false;
+        if (state.aiConsultation) {
+            elements.aiConsultationHint.textContent = "分析已更新。";
+        }
         renderAiResponse();
     }
 }
@@ -777,6 +907,53 @@ function renderAiResponse() {
         </div>
         <div class="ai-response-body">${escapeMultiline(state.aiConsultation.answer)}</div>
         <div class="ai-response-footnote">上下文摘要：${escapeHtml(state.aiConsultation.contextDigest || "已基于当前成员档案生成")}</div>
+    `;
+}
+
+async function triggerAiConsultation() {
+    if (!state.activeProfileDetailId) {
+        showToast("请先打开成员详情。", true);
+        return;
+    }
+
+    state.aiLoading = true;
+    elements.aiConsultationHint.textContent = "AI 正在生成分析...";
+    renderAiResponse();
+
+    try {
+        const response = await fetchJson(`/api/profiles/${state.activeProfileDetailId}/ai-consultation`, {
+            method: "POST",
+            body: JSON.stringify({
+                focusRecordId: state.activeProfileDetail?.latestRecord?.id ?? null,
+                question: stringOrNull(elements.aiQuestion.value)
+            })
+        });
+
+        state.aiConsultation = response;
+        elements.aiConsultationHint.textContent = "分析已更新。";
+        showToast("AI 健康分析已生成。");
+    } finally {
+        state.aiLoading = false;
+        renderAiResponse();
+    }
+}
+
+function renderAiResponse() {
+    if (state.aiLoading) {
+        elements.aiResponseBox.innerHTML = `<div class="empty-state">AI 正在生成分析...</div>`;
+        return;
+    }
+
+    if (!state.aiConsultation) {
+        elements.aiResponseBox.innerHTML = `<div class="empty-state">点击“生成 AI 分析”查看建议。</div>`;
+        return;
+    }
+
+    elements.aiResponseBox.innerHTML = `
+        <div class="ai-response-meta">
+            <span>${escapeHtml(formatDateTime(state.aiConsultation.generatedAt))}</span>
+        </div>
+        <div class="ai-response-body">${escapeMultiline(state.aiConsultation.answer)}</div>
     `;
 }
 
@@ -1125,6 +1302,40 @@ function setSelectOptions(select, options, value = "") {
     const normalizedValue = value == null ? "" : String(value);
     const exists = options.some((option) => option.value === normalizedValue);
     select.value = exists ? normalizedValue : options[0]?.value || "";
+}
+
+function getTotalPages(totalItems, pageSize) {
+    return Math.max(1, Math.ceil(totalItems / pageSize));
+}
+
+function normalizePage(page, totalItems, pageSize) {
+    return Math.min(Math.max(page, 1), getTotalPages(totalItems, pageSize));
+}
+
+function paginateItems(items, page, pageSize) {
+    const startIndex = (page - 1) * pageSize;
+    return items.slice(startIndex, startIndex + pageSize);
+}
+
+function renderPaginationBar({ container, infoElement, prevButton, nextButton, page, totalItems, pageSize }) {
+    const totalPages = getTotalPages(totalItems, pageSize);
+    const currentPage = normalizePage(page, totalItems, pageSize);
+
+    if (totalItems <= pageSize) {
+        container.hidden = true;
+        infoElement.textContent = totalItems === 0 ? "第 1 / 1 页" : `共 ${totalItems} 条`;
+        prevButton.disabled = true;
+        nextButton.disabled = true;
+        return;
+    }
+
+    const startIndex = (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalItems);
+
+    container.hidden = false;
+    infoElement.textContent = `第 ${currentPage} / ${totalPages} 页 · ${startIndex}-${endIndex} / ${totalItems} 条`;
+    prevButton.disabled = currentPage <= 1;
+    nextButton.disabled = currentPage >= totalPages;
 }
 
 function renderBadge(value, type) {
