@@ -590,6 +590,33 @@ td {
     gap: 12px;
 }
 
+.pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(27, 42, 40, 0.08);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.pagination-meta {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.pagination-bar .ghost-btn {
+    padding: 10px 14px;
+}
+
+.pagination-bar button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .detail-modal-panel {
     width: min(1120px, 100%);
 }
@@ -899,7 +926,8 @@ td {
     }
 
     .section-heading,
-    .modal-actions {
+    .modal-actions,
+    .pagination-bar {
         flex-direction: column;
         align-items: stretch;
     }

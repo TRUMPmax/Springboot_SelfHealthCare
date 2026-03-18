@@ -46,6 +46,8 @@ const state = {
     profiles: [],
     records: [],
     alerts: [],
+    alertsPage: 1,
+    alertsPageSize: 6,
     dashboard: null,
     editingProfileId: null,
     editingRecordId: null,
@@ -85,6 +87,10 @@ function cacheElements() {
         "alertProfileFilter",
         "alertStatusFilter",
         "alertSeverityFilter",
+        "alertsPagination",
+        "alertPageInfo",
+        "alertPrevPage",
+        "alertNextPage",
         "recordProfileId",
         "profileModal",
         "recordModal",
@@ -165,7 +171,10 @@ function bindEvents() {
     document.getElementById("openProfileModalBtn").addEventListener("click", () => openProfileModal());
     document.getElementById("openRecordModalBtn").addEventListener("click", () => openRecordModal());
     document.getElementById("refreshDashboard").addEventListener("click", () => loadDashboard().catch(handleError));
-    document.getElementById("refreshAlertsBtn").addEventListener("click", () => loadAlerts().catch(handleError));
+    document.getElementById("refreshAlertsBtn").addEventListener("click", () => {
+        state.alertsPage = 1;
+        loadAlerts().catch(handleError);
+    });
 
     elements.profileForm.addEventListener("submit", handleProfileSubmit);
     elements.recordForm.addEventListener("submit", handleRecordSubmit);
@@ -174,9 +183,11 @@ function bindEvents() {
 
     elements.recordProfileFilter.addEventListener("change", () => loadRecords().catch(handleError));
     elements.recordRiskFilter.addEventListener("change", () => loadRecords().catch(handleError));
-    elements.alertProfileFilter.addEventListener("change", () => loadAlerts().catch(handleError));
-    elements.alertStatusFilter.addEventListener("change", () => loadAlerts().catch(handleError));
-    elements.alertSeverityFilter.addEventListener("change", () => loadAlerts().catch(handleError));
+    elements.alertProfileFilter.addEventListener("change", () => resetAlertsPageAndReload());
+    elements.alertStatusFilter.addEventListener("change", () => resetAlertsPageAndReload());
+    elements.alertSeverityFilter.addEventListener("change", () => resetAlertsPageAndReload());
+    elements.alertPrevPage.addEventListener("click", () => changeAlertsPage(-1));
+    elements.alertNextPage.addEventListener("click", () => changeAlertsPage(1));
 
     document.addEventListener("click", handleActionClick);
     document.addEventListener("keydown", (event) => {
@@ -287,6 +298,10 @@ async function loadAlerts() {
 
     const query = params.toString() ? `?${params.toString()}` : "";
     state.alerts = await fetchJson(`/api/alerts${query}`);
+    const totalPages = getAlertsTotalPages();
+    if (state.alertsPage > totalPages) {
+        state.alertsPage = totalPages;
+    }
     renderAlerts();
 }
 
@@ -427,10 +442,11 @@ function renderRecords() {
 function renderAlerts() {
     if (state.alerts.length === 0) {
         elements.alertTableBody.innerHTML = renderEmptyRow("暂无符合条件的预警记录。", 8);
+        renderAlertsPagination();
         return;
     }
 
-    elements.alertTableBody.innerHTML = state.alerts.map((alert) => `
+    elements.alertTableBody.innerHTML = getCurrentAlertPageItems().map((alert) => `
         <tr>
             <td>${formatDate(alert.observedDate)}</td>
             <td>${renderProfileLink(alert.profile)}</td>
@@ -447,6 +463,54 @@ function renderAlerts() {
             </td>
         </tr>
     `).join("");
+
+    renderAlertsPagination();
+}
+
+function resetAlertsPageAndReload() {
+    state.alertsPage = 1;
+    loadAlerts().catch(handleError);
+}
+
+function changeAlertsPage(offset) {
+    const nextPage = state.alertsPage + offset;
+    const totalPages = getAlertsTotalPages();
+    if (nextPage < 1 || nextPage > totalPages) {
+        return;
+    }
+    state.alertsPage = nextPage;
+    renderAlerts();
+}
+
+function getAlertsTotalPages() {
+    return Math.max(1, Math.ceil(state.alerts.length / state.alertsPageSize));
+}
+
+function getCurrentAlertPageItems() {
+    const startIndex = (state.alertsPage - 1) * state.alertsPageSize;
+    return state.alerts.slice(startIndex, startIndex + state.alertsPageSize);
+}
+
+function renderAlertsPagination() {
+    const totalItems = state.alerts.length;
+    const totalPages = getAlertsTotalPages();
+
+    if (totalItems === 0) {
+        elements.alertsPagination.hidden = true;
+        elements.alertPageInfo.textContent = "第 1 页 / 共 1 页";
+        elements.alertPrevPage.disabled = true;
+        elements.alertNextPage.disabled = true;
+        return;
+    }
+
+    const startIndex = (state.alertsPage - 1) * state.alertsPageSize + 1;
+    const endIndex = Math.min(state.alertsPage * state.alertsPageSize, totalItems);
+
+    elements.alertsPagination.hidden = false;
+    elements.alertPageInfo.textContent =
+        `第 ${state.alertsPage} 页 / 共 ${totalPages} 页 · 当前显示 ${startIndex}-${endIndex} 条，共 ${totalItems} 条`;
+    elements.alertPrevPage.disabled = state.alertsPage <= 1;
+    elements.alertNextPage.disabled = state.alertsPage >= totalPages;
 }
 
 async function openProfileDetail(profileId, options = {}) {
