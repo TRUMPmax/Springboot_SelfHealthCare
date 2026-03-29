@@ -8,11 +8,11 @@ import com.example.selfhealthcare.domain.UserProfile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.stream.Stream;
 
 public record UserProfileResponse(
         Long id,
         String fullName,
-        String relationToUser,
         Gender gender,
         Integer age,
         LocalDate birthDate,
@@ -34,6 +34,7 @@ public record UserProfileResponse(
         String emergencyContact,
         String emergencyContactPhone,
         String notes,
+        int completionScore,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
@@ -41,7 +42,6 @@ public record UserProfileResponse(
         return new UserProfileResponse(
                 profile.getId(),
                 profile.getFullName(),
-                profile.getRelationToUser(),
                 profile.getGender(),
                 profile.getAge(),
                 profile.getBirthDate(),
@@ -63,7 +63,25 @@ public record UserProfileResponse(
                 profile.getEmergencyContact(),
                 profile.getEmergencyContactPhone(),
                 profile.getNotes(),
+                calculateCompletionScore(profile),
                 profile.getCreatedAt(),
                 profile.getUpdatedAt());
+    }
+
+    private static int calculateCompletionScore(UserProfile profile) {
+        long completed = Stream.of(
+                        profile.getFullName(),
+                        profile.getGender(),
+                        profile.getAge(),
+                        profile.getBirthDate(),
+                        profile.getBloodType(),
+                        profile.getPhone(),
+                        profile.getHeightCm(),
+                        profile.getWeightKg(),
+                        profile.getChronicDiseases(),
+                        profile.getCurrentMedications())
+                .filter(item -> item != null)
+                .count();
+        return (int) Math.round(completed * 100.0 / 10.0);
     }
 }

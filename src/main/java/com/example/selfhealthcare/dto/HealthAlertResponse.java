@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 
 public record HealthAlertResponse(
         Long id,
-        ProfileSummaryResponse profile,
         Long healthRecordId,
         LocalDate observedDate,
         String category,
@@ -24,7 +23,6 @@ public record HealthAlertResponse(
     public static HealthAlertResponse from(HealthAlert alert) {
         return new HealthAlertResponse(
                 alert.getId(),
-                ProfileSummaryResponse.from(alert.getProfile()),
                 alert.getHealthRecord().getId(),
                 alert.getObservedDate(),
                 alert.getCategory(),

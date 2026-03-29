@@ -1,0 +1,270 @@
+================================================================
+   基于 SpringBoot 的个人健康管理与疾病预警系统
+           部署环境配置清单（Windows 系统）
+================================================================
+生成日期：2026-03-19
+适用系统：Windows 10 / Windows 11（全新或干净环境）
+
+----------------------------------------------------------------
+【项目技术栈速览】
+----------------------------------------------------------------
+  运行时     : Java 21
+  框架       : Spring Boot 3.5.11
+  构建工具   : Maven（内置 mvnw.cmd，无需单独安装）
+  数据库     : H2（内嵌文件型数据库，无需额外安装数据库服务）
+  AI 接口    : DeepSeek API（可选，需自行申请 API Key）
+  前端静态资源: 内嵌于 Spring Boot（无需 Node.js / Nginx）
+  端口       : 8081
+
+结论：本项目 **只需安装 JDK 21** 即可运行，无需 MySQL、Redis、
+      Node.js 等额外服务，部署门槛极低。
+
+================================================================
+  第一步：安装 JDK 21（必须）
+================================================================
+
+----[ 方式一：手动下载安装包（推荐，稳定可靠）]---------------
+
+1. 打开浏览器访问（国内镜像，速度快）：
+   https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/windows/
+
+2. 下载文件名类似：
+   OpenJDK21U-jdk_x64_windows_hotspot_21.x.x_x.msi
+
+3. 双击 .msi 文件，按向导安装，默认路径即可。
+   安装时勾选 "Set JAVA_HOME variable" 和 "Add to PATH"（如有选项）。
+
+4. 验证安装：打开 CMD 或 PowerShell，执行：
+   java -version
+   
+   正常输出示例：
+   openjdk version "21.x.x" ...
+
+----[ 方式二：使用 winget 命令行安装（需 Windows 10 1709+）]---
+
+在 PowerShell（管理员）中执行：
+  winget install --id EclipseAdoptium.Temurin.21.JDK -e
+
+安装完成后关闭并重新打开终端，再执行 java -version 验证。
+
+----[ 配置环境变量（如安装后 java 命令找不到）]--------------
+
+1. 右键"此电脑" → 属性 → 高级系统设置 → 环境变量
+
+2. 新建系统变量：
+   变量名：JAVA_HOME
+   变量值：C:\Program Files\Eclipse Adoptium\jdk-21.x.x.x-hotspot
+   （填写你实际的安装路径）
+
+3. 在系统变量 Path 中新增：
+   %JAVA_HOME%\bin
+
+4. 确定保存，重开终端验证：
+   java -version
+   javac -version
+
+================================================================
+  第二步：获取项目源码
+================================================================
+
+----[ 方式一：使用 Git 克隆（需安装 Git）]--------------------
+
+安装 Git（国内镜像）：
+  https://registry.npmmirror.com/binary.html?path=git-for-windows/
+
+克隆项目：
+  git clone <你的仓库地址> Springboot_SelfHealthCare
+  cd Springboot_SelfHealthCare
+
+----[ 方式二：直接复制项目文件夹 ]----------------------------
+
+将整个项目文件夹（含 mvnw.cmd、pom.xml、src/ 等）复制到目标电脑，
+例如放到 D:\Projects\Springboot_SelfHealthCare。
+
+================================================================
+  第三步：配置 Maven 国内镜像（加速依赖下载）
+================================================================
+
+项目自带 mvnw.cmd（Maven Wrapper），无需单独安装 Maven。
+但首次运行需要下载大量依赖，强烈建议先配置阿里云镜像。
+
+---- Maven 配置文件位置 ----
+
+Maven 的用户配置文件路径为：
+  C:\Users\<你的用户名>\.m2\settings.xml
+
+如果该文件不存在，请手动创建。
+
+---- settings.xml 完整内容（复制粘贴即可）----
+
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <mirrors>
+    <!-- 阿里云 Maven 中央仓库镜像 -->
+    <mirror>
+      <id>aliyun-central</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Aliyun Maven Central Mirror</name>
+      <url>https://maven.aliyun.com/repository/central</url>
+    </mirror>
+    <!-- 阿里云 Spring 仓库镜像 -->
+    <mirror>
+      <id>aliyun-spring</id>
+      <mirrorOf>spring-plugin,spring-milestones,spring-snapshots</mirrorOf>
+      <name>Aliyun Spring Mirror</name>
+      <url>https://maven.aliyun.com/repository/spring</url>
+    </mirror>
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>aliyun</id>
+      <repositories>
+        <repository>
+          <id>aliyun-public</id>
+          <url>https://maven.aliyun.com/repository/public</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>aliyun</activeProfile>
+  </activeProfiles>
+
+</settings>
+
+---- 用 PowerShell 一键创建该文件（可选）----
+
+在 PowerShell 中依次执行（将上方 XML 内容保存为文件）：
+
+  $dir = "$env:USERPROFILE\.m2"
+  if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir }
+  
+然后用记事本打开 C:\Users\<用户名>\.m2\settings.xml 粘贴上方内容保存。
+
+================================================================
+  第四步：（可选）配置 DeepSeek AI 功能
+================================================================
+
+项目集成了 DeepSeek AI 健康分析功能，如需使用：
+
+1. 访问 https://platform.deepseek.com/ 注册并获取 API Key
+
+2. 在项目根目录找到：
+   src/main/resources/application.properties
+
+   修改以下两行：
+   deepseek.enabled=true
+   deepseek.api-key=sk-xxxxxxxxxxxxxxxxxxxxxxxx   ← 填入你的 Key
+
+   或者通过环境变量配置（更安全，不用改代码）：
+   在系统环境变量中新增：
+     变量名：DEEPSEEK_API_KEY
+     变量值：sk-xxxxxxxxxxxxxxxxxxxxxxxx
+
+   如果不需要 AI 功能，保持默认即可：
+   deepseek.enabled=true   （Key 为空时 AI 功能会自动降级）
+
+================================================================
+  第五步：启动项目
+================================================================
+
+----[ 方式一：双击一键启动（最简单）]------------------------
+
+直接双击项目根目录下的：
+  start-app.bat
+
+程序会自动编译、启动，并在浏览器中打开首页。
+首次启动需要下载 Maven 依赖，耗时 2~10 分钟（视网速而定）。
+
+----[ 方式二：命令行启动 ]------------------------------------
+
+打开 CMD 或 PowerShell，进入项目目录，执行：
+
+  cd D:\Projects\Springboot_SelfHealthCare
+  .\mvnw.cmd spring-boot:run
+
+----[ 方式三：打包后作为独立 JAR 运行 ]----------------------
+
+编译打包：
+  .\mvnw.cmd package -DskipTests
+
+运行 JAR（替换 x 为实际版本号）：
+  java -jar target\self-health-care-0.0.1-SNAPSHOT.jar
+
+================================================================
+  第六步：访问应用
+================================================================
+
+启动成功后，浏览器访问：
+
+  主页面    : http://localhost:8081
+  H2数据库  : http://localhost:8081/h2-console
+
+H2 Console 连接信息：
+  JDBC URL : jdbc:h2:file:./data/self-health-care
+  用户名   : sa
+  密码     : （留空）
+
+================================================================
+  常见问题排查
+================================================================
+
+【问题1】执行 java -version 提示"不是内部或外部命令"
+  → 说明 Java 未安装或 PATH 未配置
+  → 重装 JDK 并确认勾选了添加到 PATH 的选项，重开终端再试
+
+【问题2】mvnw.cmd 运行报错"不是内部或外部命令"
+  → 确认当前目录是项目根目录（含 mvnw.cmd 文件）
+  → 改用 .\mvnw.cmd 加上 .\ 前缀
+
+【问题3】下载依赖极慢或超时
+  → 检查 C:\Users\<用户名>\.m2\settings.xml 是否已配置阿里云镜像
+  → 确认网络能访问 maven.aliyun.com
+
+【问题4】端口 8081 被占用
+  → 用管理员 CMD 执行：netstat -ano | findstr :8081
+  → 找到对应 PID，在任务管理器中结束该进程
+  → 或修改 application.properties 中的 server.port 为其他端口
+
+【问题5】应用启动后页面空白或 404
+  → 等待 30 秒后刷新（首次启动较慢）
+  → 查看命令行窗口是否有 ERROR 报错信息
+
+================================================================
+  环境清单汇总
+================================================================
+
+  必装软件     版本要求        备注
+  ---------   -----------    --------------------------------
+  JDK          21 或更高      项目唯一必装依赖
+  
+  可选工具     版本要求        备注
+  ---------   -----------    --------------------------------
+  Git          任意           用于克隆代码（可用文件夹替代）
+  
+  无需安装     说明
+  ---------   ----------------------------------------
+  Maven        项目内置 mvnw.cmd，自动管理
+  MySQL/数据库 项目使用 H2 内嵌数据库，无需外部数据库
+  Node.js      纯后端项目，无需前端构建工具
+  Nginx        开发/测试直接用 Spring Boot 内置服务器
+
+================================================================
+  磁盘空间参考
+================================================================
+  JDK 21 安装大小    : ~300 MB
+  Maven 依赖缓存      : ~200~400 MB（下载后存于 .m2 文件夹）
+  项目源码            : ~5 MB
+  运行时数据（H2）    : ~1~10 MB（视数据量增长）
+
+================================================================
+  文档结束
+================================================================

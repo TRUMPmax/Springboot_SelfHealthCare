@@ -10,7 +10,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -20,11 +19,7 @@ public record UserProfileRequest(
         @NotBlank(message = "姓名不能为空")
         @Size(max = 50, message = "姓名长度不能超过50个字符")
         String fullName,
-        @Size(max = 30, message = "与本人关系长度不能超过30个字符")
-        String relationToUser,
-        @NotNull(message = "性别不能为空")
         Gender gender,
-        @NotNull(message = "年龄不能为空")
         @Min(value = 1, message = "年龄不能小于1")
         @Max(value = 120, message = "年龄不能大于120")
         Integer age,
@@ -41,8 +36,8 @@ public record UserProfileRequest(
         @DecimalMin(value = "50.0", message = "身高不能小于50厘米")
         @DecimalMax(value = "250.0", message = "身高不能大于250厘米")
         BigDecimal heightCm,
-        @DecimalMin(value = "20.0", message = "体重不能小于20公斤")
-        @DecimalMax(value = "300.0", message = "体重不能大于300公斤")
+        @DecimalMin(value = "20.0", message = "体重不能小于20千克")
+        @DecimalMax(value = "300.0", message = "体重不能大于300千克")
         BigDecimal weightKg,
         SmokingStatus smokingStatus,
         AlcoholUseStatus alcoholUseStatus,

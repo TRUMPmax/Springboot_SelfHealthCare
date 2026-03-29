@@ -4,6 +4,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,17 +15,18 @@ import java.time.LocalDate;
 @Table(name = "user_profile")
 public class UserProfile extends BaseEntity {
 
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private AppUser user;
+
     @Column(nullable = false, length = 50)
     private String fullName;
 
-    @Column(length = 30)
-    private String relationToUser;
-
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private Gender gender;
 
-    @Column(nullable = false)
+    @Column
     private Integer age;
 
     private LocalDate birthDate;
@@ -84,20 +88,20 @@ public class UserProfile extends BaseEntity {
     @Column(length = 1000)
     private String notes;
 
+    public AppUser getUser() {
+        return user;
+    }
+
+    public void setUser(AppUser user) {
+        this.user = user;
+    }
+
     public String getFullName() {
         return fullName;
     }
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
-    }
-
-    public String getRelationToUser() {
-        return relationToUser;
-    }
-
-    public void setRelationToUser(String relationToUser) {
-        this.relationToUser = relationToUser;
     }
 
     public Gender getGender() {

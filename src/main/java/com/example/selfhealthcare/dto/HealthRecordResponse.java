@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 
 public record HealthRecordResponse(
         Long id,
-        ProfileSummaryResponse profile,
         LocalDate recordDate,
         BigDecimal weightKg,
         BigDecimal waistCircumferenceCm,
@@ -39,7 +38,6 @@ public record HealthRecordResponse(
     public static HealthRecordResponse from(HealthRecord record) {
         return new HealthRecordResponse(
                 record.getId(),
-                ProfileSummaryResponse.from(record.getProfile()),
                 record.getRecordDate(),
                 record.getWeightKg(),
                 record.getWaistCircumferenceCm(),

@@ -4,9 +4,9 @@ import com.example.selfhealthcare.domain.AlertSeverity;
 import com.example.selfhealthcare.domain.AlertStatus;
 import com.example.selfhealthcare.dto.AlertStatusUpdateRequest;
 import com.example.selfhealthcare.dto.HealthAlertResponse;
+import com.example.selfhealthcare.dto.PagedResponse;
 import com.example.selfhealthcare.service.HealthAlertService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +29,12 @@ public class HealthAlertController {
     }
 
     @GetMapping
-    public List<HealthAlertResponse> listAlerts(
-            @RequestParam(required = false) Long profileId,
+    public PagedResponse<HealthAlertResponse> listAlerts(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) AlertStatus status,
             @RequestParam(required = false) AlertSeverity severity) {
-        return healthAlertService.listAlerts(profileId, status, severity);
+        return healthAlertService.listAlerts(page, size, status, severity);
     }
 
     @GetMapping("/{id}")

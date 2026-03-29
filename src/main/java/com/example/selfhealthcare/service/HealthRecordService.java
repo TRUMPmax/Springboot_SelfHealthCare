@@ -1,16 +1,22 @@
 package com.example.selfhealthcare.service;
 
 import com.example.selfhealthcare.domain.AlertStatus;
+import com.example.selfhealthcare.domain.AppUser;
 import com.example.selfhealthcare.domain.HealthAlert;
 import com.example.selfhealthcare.domain.HealthRecord;
 import com.example.selfhealthcare.domain.RiskLevel;
 import com.example.selfhealthcare.domain.UserProfile;
 import com.example.selfhealthcare.dto.HealthRecordRequest;
 import com.example.selfhealthcare.dto.HealthRecordResponse;
+import com.example.selfhealthcare.dto.PagedResponse;
 import com.example.selfhealthcare.exception.NotFoundException;
 import com.example.selfhealthcare.repository.HealthAlertRepository;
 import com.example.selfhealthcare.repository.HealthRecordRepository;
+import com.example.selfhealthcare.util.PagingSupport;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,65 +26,85 @@ public class HealthRecordService {
 
     private final HealthRecordRepository healthRecordRepository;
     private final HealthAlertRepository healthAlertRepository;
+    private final AuthService authService;
     private final UserProfileService userProfileService;
     private final RiskAssessmentService riskAssessmentService;
 
     public HealthRecordService(
             HealthRecordRepository healthRecordRepository,
             HealthAlertRepository healthAlertRepository,
+            AuthService authService,
             UserProfileService userProfileService,
             RiskAssessmentService riskAssessmentService) {
         this.healthRecordRepository = healthRecordRepository;
         this.healthAlertRepository = healthAlertRepository;
+        this.authService = authService;
         this.userProfileService = userProfileService;
         this.riskAssessmentService = riskAssessmentService;
     }
 
     @Transactional(readOnly = true)
-    public List<HealthRecordResponse> listRecords(Long profileId, RiskLevel riskLevel) {
-        return healthRecordRepository
-                .findAll(Sort.by(Sort.Order.desc("recordDate"), Sort.Order.desc("createdAt")))
-                .stream()
-                .filter(record -> profileId == null || record.getProfile().getId().equals(profileId))
-                .filter(record -> riskLevel == null || record.getRiskLevel() == riskLevel)
-                .map(HealthRecordResponse::from)
-                .toList();
+    public PagedResponse<HealthRecordResponse> listRecords(int page, int size, RiskLevel riskLevel) {
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        int normalizedPage = PagingSupport.normalizePage(page);
+        Pageable pageable = PageRequest.of(
+                normalizedPage - 1,
+                PagingSupport.normalizeSize(size),
+                Sort.by(Sort.Order.desc("recordDate"), Sort.Order.desc("createdAt")));
+
+        Page<HealthRecord> records = riskLevel == null
+                ? healthRecordRepository.findByUserId(currentUser.getId(), pageable)
+                : healthRecordRepository.findByUserIdAndRiskLevel(currentUser.getId(), riskLevel, pageable);
+
+        return PagingSupport.toResponse(records, normalizedPage, HealthRecordResponse::from);
     }
 
     @Transactional(readOnly = true)
     public HealthRecordResponse getRecord(Long id) {
-        return HealthRecordResponse.from(findEntity(id));
+        return HealthRecordResponse.from(findOwnedEntity(id));
     }
 
     @Transactional
     public HealthRecordResponse createRecord(HealthRecordRequest request) {
-        HealthRecord record = new HealthRecord();
-        return saveRecord(record, request);
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        return saveRecord(new HealthRecord(), currentUser, request);
     }
 
     @Transactional
     public HealthRecordResponse updateRecord(Long id, HealthRecordRequest request) {
-        HealthRecord record = findEntity(id);
-        return saveRecord(record, request);
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        HealthRecord record = findOwnedEntity(id, currentUser.getId());
+        return saveRecord(record, currentUser, request);
     }
 
     @Transactional
     public void deleteRecord(Long id) {
-        HealthRecord record = findEntity(id);
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        HealthRecord record = findOwnedEntity(id, currentUser.getId());
         healthAlertRepository.deleteByHealthRecordId(record.getId());
         healthRecordRepository.delete(record);
     }
 
-    @Transactional(readOnly = true)
-    public HealthRecord findEntity(Long id) {
-        return healthRecordRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("未找到编号为 " + id + " 的健康记录"));
+    @Transactional
+    public HealthRecordResponse createImportedRecord(AppUser user, HealthRecordRequest request) {
+        return saveRecord(new HealthRecord(), user, request);
     }
 
-    private HealthRecordResponse saveRecord(HealthRecord record, HealthRecordRequest request) {
-        UserProfile profile = userProfileService.findEntity(request.profileId());
-        apply(record, profile, request);
+    @Transactional(readOnly = true)
+    public HealthRecord findOwnedEntity(Long id) {
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        return findOwnedEntity(id, currentUser.getId());
+    }
 
+    private HealthRecord findOwnedEntity(Long id, Long userId) {
+        return healthRecordRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new NotFoundException("未找到对应的健康记录"));
+    }
+
+    private HealthRecordResponse saveRecord(HealthRecord record, AppUser user, HealthRecordRequest request) {
+        apply(record, user, request);
+
+        UserProfile profile = userProfileService.findByUserId(user.getId()).orElse(null);
         RiskAssessmentService.AssessmentResult assessmentResult = riskAssessmentService.assess(profile, record);
         record.setBmi(assessmentResult.bmi());
         record.setRiskScore(assessmentResult.riskScore());
@@ -96,7 +122,7 @@ public class HealthRecordService {
         List<HealthAlert> alerts = assessmentResult.alerts().stream()
                 .map(alertDraft -> {
                     HealthAlert alert = new HealthAlert();
-                    alert.setProfile(record.getProfile());
+                    alert.setUser(record.getUser());
                     alert.setHealthRecord(record);
                     alert.setObservedDate(record.getRecordDate());
                     alert.setCategory(alertDraft.category());
@@ -113,8 +139,8 @@ public class HealthRecordService {
         }
     }
 
-    private void apply(HealthRecord record, UserProfile profile, HealthRecordRequest request) {
-        record.setProfile(profile);
+    private void apply(HealthRecord record, AppUser user, HealthRecordRequest request) {
+        record.setUser(user);
         record.setRecordDate(request.recordDate());
         record.setWeightKg(request.weightKg());
         record.setWaistCircumferenceCm(request.waistCircumferenceCm());

@@ -1,33 +1,6 @@
 const enumLabels = {
-    gender: {
-        MALE: "男",
-        FEMALE: "女",
-        OTHER: "其他"
-    },
-    riskLevel: {
-        LOW: "低风险",
-        MEDIUM: "中风险",
-        HIGH: "高风险",
-        CRITICAL: "极高风险"
-    },
-    alertSeverity: {
-        LOW: "轻度",
-        MEDIUM: "中度",
-        HIGH: "重度",
-        CRITICAL: "危急"
-    },
-    alertStatus: {
-        PENDING: "待处理",
-        REVIEWED: "已查看",
-        RESOLVED: "已处置"
-    },
-    bloodType: {
-        A: "A型",
-        B: "B型",
-        AB: "AB型",
-        O: "O型",
-        UNKNOWN: "未知"
-    },
+    gender: { MALE: "男", FEMALE: "女", OTHER: "其他" },
+    bloodType: { A: "A型", B: "B型", AB: "AB型", O: "O型", UNKNOWN: "未知" },
     smokingStatus: {
         NEVER: "从不吸烟",
         FORMER: "已戒烟",
@@ -39,1242 +12,1222 @@ const enumLabels = {
         OCCASIONAL: "偶尔饮酒",
         WEEKLY: "每周饮酒",
         FREQUENT: "频繁饮酒"
+    },
+    riskLevel: {
+        LOW: "低风险",
+        MEDIUM: "中风险",
+        HIGH: "高风险",
+        CRITICAL: "极高风险"
+    },
+    alertStatus: {
+        PENDING: "待处理",
+        REVIEWED: "已查看",
+        RESOLVED: "已解决"
+    },
+    alertSeverity: {
+        LOW: "轻度",
+        MEDIUM: "中度",
+        HIGH: "重度",
+        CRITICAL: "危急"
     }
+};
+
+const routes = [
+    { key: "dashboard", label: "总览" },
+    { key: "profile", label: "个人档案" },
+    { key: "records", label: "健康记录" },
+    { key: "alerts", label: "预警中心" },
+    { key: "imports", label: "文档导入" },
+    { key: "visualization", label: "数据图表" },
+    { key: "ai", label: "AI 分析" }
+];
+
+const routeMeta = {
+    dashboard: { title: "健康总览", subtitle: "" },
+    profile: { title: "个人档案", subtitle: "" },
+    records: { title: "健康记录", subtitle: "" },
+    alerts: { title: "预警中心", subtitle: "" },
+    imports: { title: "文档导入", subtitle: "" },
+    visualization: { title: "数据图表", subtitle: "" },
+    ai: { title: "AI 分析", subtitle: "" }
 };
 
 const state = {
-    profiles: [],
-    profilesPage: 1,
-    profilesPageSize: 10,
-    records: [],
-    recordsPage: 1,
-    recordsPageSize: 10,
-    alerts: [],
-    alertsPage: 1,
-    alertsPageSize: 10,
+    session: null,
+    authMode: "login",
+    route: "dashboard",
     dashboard: null,
-    editingProfileId: null,
-    editingRecordId: null,
-    editingAlertId: null,
-    activeProfileDetailId: null,
-    activeProfileDetail: null,
-    aiConsultation: null,
-    aiLoading: false
+    profileDetail: {
+        profile: null,
+        latestRecord: null,
+        trends: [],
+        personalizedSuggestions: [],
+        recentRecords: [],
+        recentAlerts: []
+    },
+    records: {
+        items: [],
+        page: 1,
+        size: 10,
+        totalItems: 0,
+        totalPages: 1,
+        riskLevel: ""
+    },
+    alerts: {
+        items: [],
+        page: 1,
+        size: 10,
+        totalItems: 0,
+        totalPages: 1,
+        status: "",
+        severity: ""
+    },
+    visualization: null,
+    importResult: null,
+    ai: {
+        loading: false,
+        result: null
+    }
 };
 
 const elements = {};
-const modalIds = ["profileModal", "recordModal", "alertModal", "profileDetailModal"];
+let toastTimer = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     cacheElements();
-    applyStaticCopyOverrides();
     bindEvents();
-    populateStaticOptions();
-    resetProfileForm();
-    resetRecordForm();
-    loadAll().catch(handleError);
+    bootstrap().catch(handleError);
 });
 
 function cacheElements() {
-    [
-        "metricProfiles",
-        "metricRecords",
-        "metricPendingAlerts",
-        "metricHighRisk",
-        "riskDistribution",
-        "recentRecordsBody",
-        "recentAlertsFeed",
-        "profileTableBody",
-        "profilesPagination",
-        "profilePageInfo",
-        "profilePrevPage",
-        "profileNextPage",
-        "recordTableBody",
-        "recordsPagination",
-        "recordPageInfo",
-        "recordPrevPage",
-        "recordNextPage",
-        "alertTableBody",
-        "recordProfileFilter",
-        "recordRiskFilter",
-        "alertProfileFilter",
-        "alertStatusFilter",
-        "alertSeverityFilter",
-        "alertsPagination",
-        "alertPageInfo",
-        "alertPrevPage",
-        "alertNextPage",
-        "recordProfileId",
-        "profileModal",
-        "recordModal",
-        "alertModal",
-        "profileDetailModal",
-        "profileModalTitle",
-        "recordModalTitle",
-        "profileForm",
-        "recordForm",
-        "alertForm",
-        "profileName",
-        "profileRelationToUser",
-        "profileGender",
-        "profileAge",
-        "profileBirthDate",
-        "profileBloodType",
-        "profilePhone",
-        "profileEmail",
-        "profileOccupation",
-        "profileHeight",
-        "profileWeight",
-        "profileSmokingStatus",
-        "profileAlcoholUseStatus",
-        "profileEmergencyContact",
-        "profileEmergencyContactPhone",
-        "profileFamilyHistory",
-        "profileChronicDiseases",
-        "profileCurrentMedications",
-        "profileSurgeryHistory",
-        "profileAllergies",
-        "profileExerciseHabit",
-        "profileCareGoals",
-        "profileNotes",
-        "recordDate",
-        "recordWeight",
-        "recordWaistCircumference",
-        "recordSystolic",
-        "recordDiastolic",
-        "recordHeartRate",
-        "recordBloodSugar",
-        "recordPostprandialBloodSugar",
-        "recordTemperature",
-        "recordOxygen",
-        "recordCholesterol",
-        "recordSleepHours",
-        "recordExerciseMinutes",
-        "recordStepsCount",
-        "recordWaterIntakeMl",
-        "recordStressLevel",
-        "recordMoodScore",
-        "recordSymptoms",
-        "recordMedicationTaken",
-        "recordNotes",
-        "alertStatus",
-        "alertHandledNote",
-        "detailName",
-        "detailSubtitle",
-        "detailHeaderCards",
-        "detailProfileGrid",
-        "detailSuggestions",
-        "trendGrid",
-        "latestMetrics",
-        "detailAlertsFeed",
-        "detailRecordsBody",
-        "aiQuestion",
-        "triggerAiConsultation",
-        "aiConsultationHint",
-        "aiResponseBox",
-        "toast"
-    ].forEach((id) => {
-        elements[id] = document.getElementById(id);
-    });
-}
-
-function applyStaticCopyOverrides() {
-    const aiSectionDescription = elements.triggerAiConsultation
-        ?.closest(".sub-panel")
-        ?.querySelector(".section-heading p");
-
-    if (aiSectionDescription) {
-        aiSectionDescription.textContent = "结合档案和近期记录生成分析建议。";
-    }
-
-    elements.triggerAiConsultation.textContent = "生成 AI 分析";
-    elements.aiConsultationHint.textContent = "可补充具体问题。";
-    elements.aiResponseBox.innerHTML = `<div class="empty-state">点击“生成 AI 分析”查看建议。</div>`;
-
-    elements.profilePrevPage.textContent = "上一页";
-    elements.profileNextPage.textContent = "下一页";
-    elements.recordPrevPage.textContent = "上一页";
-    elements.recordNextPage.textContent = "下一页";
-    elements.alertPrevPage.textContent = "上一页";
-    elements.alertNextPage.textContent = "下一页";
-    elements.profilePageInfo.textContent = "第 1 / 1 页";
-    elements.recordPageInfo.textContent = "第 1 / 1 页";
-    elements.alertPageInfo.textContent = "第 1 / 1 页";
+    elements.app = document.getElementById("app");
+    elements.toast = document.getElementById("toast");
+    elements.modalBackdrop = document.getElementById("modalBackdrop");
+    elements.modalPanel = document.getElementById("modalPanel");
 }
 
 function bindEvents() {
-    document.getElementById("quickCreateProfile").addEventListener("click", () => openProfileModal());
-    document.getElementById("quickCreateRecord").addEventListener("click", () => openRecordModal());
-    document.getElementById("openProfileModalBtn").addEventListener("click", () => openProfileModal());
-    document.getElementById("openRecordModalBtn").addEventListener("click", () => openRecordModal());
-    document.getElementById("refreshDashboard").addEventListener("click", () => loadDashboard().catch(handleError));
-    document.getElementById("refreshAlertsBtn").addEventListener("click", () => {
-        state.alertsPage = 1;
-        loadAlerts().catch(handleError);
-    });
-
-    elements.profileForm.addEventListener("submit", handleProfileSubmit);
-    elements.recordForm.addEventListener("submit", handleRecordSubmit);
-    elements.alertForm.addEventListener("submit", handleAlertSubmit);
-    elements.triggerAiConsultation.addEventListener("click", () => triggerAiConsultation().catch(handleError));
-
-    elements.recordProfileFilter.addEventListener("change", () => resetRecordsPageAndReload());
-    elements.recordRiskFilter.addEventListener("change", () => resetRecordsPageAndReload());
-    elements.alertProfileFilter.addEventListener("change", () => resetAlertsPageAndReload());
-    elements.alertStatusFilter.addEventListener("change", () => resetAlertsPageAndReload());
-    elements.alertSeverityFilter.addEventListener("change", () => resetAlertsPageAndReload());
-    elements.profilePrevPage.addEventListener("click", () => changeProfilesPage(-1));
-    elements.profileNextPage.addEventListener("click", () => changeProfilesPage(1));
-    elements.recordPrevPage.addEventListener("click", () => changeRecordsPage(-1));
-    elements.recordNextPage.addEventListener("click", () => changeRecordsPage(1));
-    elements.alertPrevPage.addEventListener("click", () => changeAlertsPage(-1));
-    elements.alertNextPage.addEventListener("click", () => changeAlertsPage(1));
-
-    document.addEventListener("click", handleActionClick);
-    document.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape") {
-            return;
-        }
-        const activeModalId = [...modalIds].reverse().find((id) => !document.getElementById(id).hidden);
-        if (activeModalId) {
-            closeModal(activeModalId);
+    document.addEventListener("click", handleClick);
+    document.addEventListener("submit", handleSubmit);
+    document.addEventListener("change", handleChange);
+    window.addEventListener("hashchange", handleHashRoute);
+    elements.modalBackdrop.addEventListener("click", (event) => {
+        if (event.target === elements.modalBackdrop) {
+            closeModal();
         }
     });
-
-    document.querySelectorAll(".modal").forEach((modal) => {
-        modal.addEventListener("click", (event) => {
-            if (event.target === modal) {
-                closeModal(modal.id);
-            }
-        });
-    });
 }
 
-function populateStaticOptions() {
-    setSelectOptions(elements.recordRiskFilter, [
-        { value: "", label: "全部风险" },
-        ...enumEntries(enumLabels.riskLevel)
-    ]);
-
-    setSelectOptions(elements.alertStatusFilter, [
-        { value: "", label: "全部状态" },
-        ...enumEntries(enumLabels.alertStatus)
-    ]);
-
-    setSelectOptions(elements.alertSeverityFilter, [
-        { value: "", label: "全部级别" },
-        ...enumEntries(enumLabels.alertSeverity)
-    ]);
-
-    setSelectOptions(elements.profileBloodType, [
-        { value: "", label: "请选择血型" },
-        ...enumEntries(enumLabels.bloodType)
-    ]);
-
-    setSelectOptions(elements.profileSmokingStatus, [
-        { value: "", label: "请选择吸烟情况" },
-        ...enumEntries(enumLabels.smokingStatus)
-    ]);
-
-    setSelectOptions(elements.profileAlcoholUseStatus, [
-        { value: "", label: "请选择饮酒情况" },
-        ...enumEntries(enumLabels.alcoholUseStatus)
-    ]);
+async function bootstrap() {
+    await restoreSession();
+    render();
 }
 
-async function loadAll() {
-    await Promise.all([loadDashboard(), loadProfiles()]);
-    await Promise.all([loadRecords(), loadAlerts()]);
-    await refreshOpenProfileDetail();
+async function restoreSession() {
+    const session = await api("/api/auth/me", { suppressUnauthorizedRedirect: true });
+    if (session?.authenticated) {
+        state.session = session;
+        syncRoute();
+        await loadAllData();
+    } else {
+        state.session = null;
+        state.route = "dashboard";
+    }
 }
 
-async function reloadData() {
-    await Promise.all([loadDashboard(), loadProfiles(), loadRecords(), loadAlerts()]);
-    await refreshOpenProfileDetail({ resetAi: true });
+function handleHashRoute() {
+    if (!state.session) {
+        return;
+    }
+    syncRoute();
+    render();
+}
+
+function syncRoute() {
+    const rawHash = window.location.hash.replace("#", "");
+    state.route = routes.some((item) => item.key === rawHash) ? rawHash : "dashboard";
+    if (window.location.hash !== `#${state.route}`) {
+        history.replaceState(null, "", `#${state.route}`);
+    }
+}
+
+async function loadAllData() {
+    await Promise.all([
+        loadDashboard(),
+        loadProfileDetail(),
+        loadRecords(),
+        loadAlerts(),
+        loadVisualization()
+    ]);
 }
 
 async function loadDashboard() {
-    state.dashboard = await fetchJson("/api/dashboard");
-    renderDashboard();
+    state.dashboard = await api("/api/dashboard");
 }
 
-async function loadProfiles() {
-    state.profiles = await fetchJson("/api/profiles");
-    state.profilesPage = normalizePage(state.profilesPage, state.profiles.length, state.profilesPageSize);
-    if (state.profiles.length === 0) {
-        elements.profilesPagination.hidden = true;
-    }
-    renderProfiles();
-    populateProfileOptions();
-
-    if (state.activeProfileDetailId && !state.profiles.some((profile) => profile.id === state.activeProfileDetailId)) {
-        state.activeProfileDetailId = null;
-        state.activeProfileDetail = null;
-        state.aiConsultation = null;
-        closeModal("profileDetailModal");
-    }
+async function loadProfileDetail() {
+    state.profileDetail = await api("/api/profile/detail");
 }
 
 async function loadRecords() {
-    const params = new URLSearchParams();
-    if (elements.recordProfileFilter.value) {
-        params.set("profileId", elements.recordProfileFilter.value);
+    const params = new URLSearchParams({
+        page: String(state.records.page),
+        size: String(state.records.size)
+    });
+    if (state.records.riskLevel) {
+        params.set("riskLevel", state.records.riskLevel);
     }
-    if (elements.recordRiskFilter.value) {
-        params.set("riskLevel", elements.recordRiskFilter.value);
-    }
-
-    const query = params.toString() ? `?${params.toString()}` : "";
-    state.records = await fetchJson(`/api/records${query}`);
-    state.recordsPage = normalizePage(state.recordsPage, state.records.length, state.recordsPageSize);
-    if (state.records.length === 0) {
-        elements.recordsPagination.hidden = true;
-    }
-    renderRecords();
+    const data = await api(`/api/records?${params.toString()}`);
+    Object.assign(state.records, data);
 }
 
 async function loadAlerts() {
-    const params = new URLSearchParams();
-    if (elements.alertProfileFilter.value) {
-        params.set("profileId", elements.alertProfileFilter.value);
+    const params = new URLSearchParams({
+        page: String(state.alerts.page),
+        size: String(state.alerts.size)
+    });
+    if (state.alerts.status) {
+        params.set("status", state.alerts.status);
     }
-    if (elements.alertStatusFilter.value) {
-        params.set("status", elements.alertStatusFilter.value);
+    if (state.alerts.severity) {
+        params.set("severity", state.alerts.severity);
     }
-    if (elements.alertSeverityFilter.value) {
-        params.set("severity", elements.alertSeverityFilter.value);
-    }
-
-    const query = params.toString() ? `?${params.toString()}` : "";
-    state.alerts = await fetchJson(`/api/alerts${query}`);
-    state.alertsPage = normalizePage(state.alertsPage, state.alerts.length, state.alertsPageSize);
-    renderAlerts();
+    const data = await api(`/api/alerts?${params.toString()}`);
+    Object.assign(state.alerts, data);
 }
 
-function populateProfileOptions() {
-    const options = state.profiles.map((profile) => ({
-        value: String(profile.id),
-        label: `${profile.fullName}${profile.relationToUser ? ` · ${profile.relationToUser}` : ""}`
-    }));
-
-    const recordFilterValue = elements.recordProfileFilter.value;
-    const alertFilterValue = elements.alertProfileFilter.value;
-    const recordFormValue = elements.recordProfileId.value;
-
-    setSelectOptions(elements.recordProfileFilter, [{ value: "", label: "全部档案" }, ...options], recordFilterValue);
-    setSelectOptions(elements.alertProfileFilter, [{ value: "", label: "全部档案" }, ...options], alertFilterValue);
-    setSelectOptions(
-        elements.recordProfileId,
-        options.length > 0 ? options : [{ value: "", label: "请先创建成员档案" }],
-        recordFormValue || options[0]?.value || ""
-    );
+async function loadVisualization() {
+    state.visualization = await api("/api/visualization");
 }
 
-function renderDashboard() {
+function render() {
+    closeModal();
+    if (!state.session) {
+        document.body.classList.remove("modal-open");
+        elements.app.innerHTML = renderAuthPage();
+        return;
+    }
+
+    const meta = routeMeta[state.route];
+    elements.app.innerHTML = `
+        <div class="app-shell">
+            <aside class="sidebar">
+                <div class="brand">
+                    <strong>个人健康平台</strong>
+                    <span>${escapeHtml(state.session.displayName)}</span>
+                </div>
+                <nav class="nav-list">
+                    ${routes.map((item) => `
+                        <button class="nav-item ${item.key === state.route ? "active" : ""}" type="button"
+                                data-action="navigate" data-route="${item.key}">
+                            <span>${escapeHtml(item.label)}</span>
+                        </button>
+                    `).join("")}
+                </nav>
+                <div style="margin-top:16px;">
+                    <button class="btn-ghost" type="button" data-action="logout">退出登录</button>
+                </div>
+            </aside>
+            <main class="app-main">
+                <div class="topbar">
+                    <div>
+                        <h2>${escapeHtml(meta.title)}</h2>
+                        ${meta.subtitle ? `<p>${escapeHtml(meta.subtitle)}</p>` : ""}
+                    </div>
+                    <div class="muted-text">当前用户：${escapeHtml(state.session.username)}</div>
+                </div>
+                ${renderCurrentPage()}
+            </main>
+        </div>
+    `;
+}
+
+function renderAuthPage() {
+    return `
+        <div class="auth-shell">
+            <div class="auth-card compact">
+                <section class="auth-panel">
+                    <h1 class="auth-title">个人健康管理</h1>
+                    <div class="auth-tabs">
+                        <button class="tab-btn ${state.authMode === "login" ? "active" : ""}" type="button"
+                                data-action="auth-tab" data-mode="login">登录</button>
+                        <button class="tab-btn ${state.authMode === "register" ? "active" : ""}" type="button"
+                                data-action="auth-tab" data-mode="register">注册</button>
+                    </div>
+                    ${state.authMode === "login" ? renderLoginForm() : renderRegisterForm()}
+                </section>
+            </div>
+        </div>
+    `;
+}
+
+function renderLoginForm() {
+    return `
+        <form id="loginForm" class="page-grid">
+            <label class="form-field">
+                用户名
+                <input name="username" type="text" maxlength="40" required>
+            </label>
+            <label class="form-field">
+                密码
+                <input name="password" type="password" maxlength="64" required>
+            </label>
+            <button class="btn" type="submit">登录系统</button>
+        </form>
+    `;
+}
+
+function renderRegisterForm() {
+    return `
+        <form id="registerForm" class="page-grid">
+            <label class="form-field">
+                用户名
+                <input name="username" type="text" maxlength="40" required>
+            </label>
+            <label class="form-field">
+                显示名称
+                <input name="displayName" type="text" maxlength="60" required>
+            </label>
+            <label class="form-field">
+                密码
+                <input name="password" type="password" maxlength="64" required>
+            </label>
+            <label class="form-field">
+                确认密码
+                <input name="confirmPassword" type="password" maxlength="64" required>
+            </label>
+            <button class="btn" type="submit">注册并进入</button>
+        </form>
+    `;
+}
+
+function renderCurrentPage() {
+    switch (state.route) {
+        case "dashboard":
+            return renderDashboardPage();
+        case "profile":
+            return renderProfilePage();
+        case "records":
+            return renderRecordsPage();
+        case "alerts":
+            return renderAlertsPage();
+        case "imports":
+            return renderImportsPage();
+        case "visualization":
+            return renderVisualizationPage();
+        case "ai":
+            return renderAiPage();
+        default:
+            return "";
+    }
+}
+
+function renderDashboardPage() {
     const dashboard = state.dashboard;
     if (!dashboard) {
-        return;
+        return renderEmpty("正在加载总览数据。");
     }
 
-    elements.metricProfiles.textContent = dashboard.totalProfiles ?? 0;
-    elements.metricRecords.textContent = dashboard.totalRecords ?? 0;
-    elements.metricPendingAlerts.textContent = dashboard.pendingAlerts ?? 0;
-    elements.metricHighRisk.textContent = dashboard.highRiskRecords ?? 0;
-
-    const totalRecords = dashboard.totalRecords || 0;
-    elements.riskDistribution.innerHTML = ["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((level) => {
-        const count = dashboard.riskDistribution?.[level] ?? 0;
-        const width = totalRecords > 0 ? Math.max((count / totalRecords) * 100, count > 0 ? 8 : 0) : 0;
-
-        return `
-            <div class="risk-bar">
-                <div class="risk-bar-top">
-                    <strong>${escapeHtml(enumLabels.riskLevel[level])}</strong>
-                    <span class="muted-text">${count} 条</span>
-                </div>
-                <div class="risk-track">
-                    <span style="width:${width}%"></span>
-                </div>
-            </div>
-        `;
-    }).join("");
-
-    if (!dashboard.recentRecords || dashboard.recentRecords.length === 0) {
-        elements.recentRecordsBody.innerHTML = renderEmptyRow("暂无健康记录", 6);
-    } else {
-        elements.recentRecordsBody.innerHTML = dashboard.recentRecords.map((record) => `
-            <tr>
-                <td>${formatDate(record.recordDate)}</td>
-                <td>${renderProfileLink(record.profile)}</td>
-                <td>${formatBloodPressure(record.systolicPressure, record.diastolicPressure)}</td>
-                <td>${formatBloodSugar(record.fastingBloodSugar, record.postprandialBloodSugar)}</td>
-                <td>${formatMetric(record.bmi)}</td>
-                <td>${renderBadge(record.riskLevel, "risk")}</td>
-            </tr>
-        `).join("");
-    }
-
-    if (!dashboard.recentAlerts || dashboard.recentAlerts.length === 0) {
-        elements.recentAlertsFeed.innerHTML = `<div class="empty-state">暂无预警信息</div>`;
-        return;
-    }
-
-    elements.recentAlertsFeed.innerHTML = dashboard.recentAlerts.map((alert) => `
-        <article class="alert-feed-item">
-            <div class="alert-feed-meta">
-                ${renderBadge(alert.severity, "severity")}
-                ${renderBadge(alert.status, "status")}
-            </div>
-            <h4>${escapeHtml(alert.title)}</h4>
-            <div class="muted-text">${renderProfileInline(alert.profile)} · ${formatDate(alert.observedDate)}</div>
-            <p>${escapeHtml(truncate(alert.suggestion, 92))}</p>
-        </article>
-    `).join("");
-}
-
-function renderProfiles() {
-    if (state.profiles.length === 0) {
-        elements.profileTableBody.innerHTML = renderEmptyRow("暂无成员档案，请先新增一条档案。", 6);
-        return;
-    }
-
-    elements.profileTableBody.innerHTML = getCurrentProfilePageItems().map((profile) => `
-        <tr>
-            <td>
-                <button class="table-link" type="button" data-action="view-profile" data-id="${profile.id}">
-                    ${escapeHtml(profile.fullName)}
-                </button>
-                <div class="muted-text">${escapeHtml(profile.relationToUser || "未填写关系")}</div>
-            </td>
-            <td>${escapeHtml(formatProfileBasics(profile))}</td>
-            <td>${escapeHtml(formatLifestyle(profile))}</td>
-            <td>${escapeHtml(formatMedicalBackground(profile))}</td>
-            <td>${escapeHtml(formatContact(profile))}</td>
-            <td>
-                <div class="cell-actions">
-                    <button class="mini-btn" type="button" data-action="edit-profile" data-id="${profile.id}">编辑</button>
-                    <button class="mini-btn danger" type="button" data-action="delete-profile" data-id="${profile.id}">删除</button>
-                </div>
-            </td>
-        </tr>
-    `).join("");
-
-    renderProfilesPagination();
-}
-
-function renderRecords() {
-    if (state.records.length === 0) {
-        elements.recordTableBody.innerHTML = renderEmptyRow("暂无符合条件的健康记录。", 8);
-        return;
-    }
-
-    elements.recordTableBody.innerHTML = getCurrentRecordPageItems().map((record) => `
-        <tr>
-            <td>${formatDate(record.recordDate)}</td>
-            <td>${renderProfileLink(record.profile)}</td>
-            <td>${formatBloodPressure(record.systolicPressure, record.diastolicPressure)}</td>
-            <td>${formatBloodSugar(record.fastingBloodSugar, record.postprandialBloodSugar)}</td>
-            <td>${formatWeightAndWaist(record)}</td>
-            <td>${formatSleepAndExercise(record)}</td>
-            <td>${renderBadge(record.riskLevel, "risk")}</td>
-            <td>
-                <div class="cell-actions">
-                    <button class="mini-btn" type="button" data-action="edit-record" data-id="${record.id}">编辑</button>
-                    <button class="mini-btn danger" type="button" data-action="delete-record" data-id="${record.id}">删除</button>
-                </div>
-            </td>
-        </tr>
-    `).join("");
-
-    renderRecordsPagination();
-}
-
-function renderAlerts() {
-    if (state.alerts.length === 0) {
-        elements.alertTableBody.innerHTML = renderEmptyRow("暂无符合条件的预警记录。", 8);
-        renderAlertsPagination();
-        return;
-    }
-
-    elements.alertTableBody.innerHTML = getCurrentAlertPageItems().map((alert) => `
-        <tr>
-            <td>${formatDate(alert.observedDate)}</td>
-            <td>${renderProfileLink(alert.profile)}</td>
-            <td>${escapeHtml(alert.title)}</td>
-            <td>${escapeHtml(alert.indicator || "-")}</td>
-            <td>${renderBadge(alert.severity, "severity")}</td>
-            <td>${renderBadge(alert.status, "status")}</td>
-            <td>${escapeHtml(truncate(alert.suggestion, 72))}</td>
-            <td>
-                <div class="cell-actions">
-                    <button class="mini-btn warning" type="button" data-action="edit-alert" data-id="${alert.id}">处理</button>
-                    <button class="mini-btn danger" type="button" data-action="delete-alert" data-id="${alert.id}">删除</button>
-                </div>
-            </td>
-        </tr>
-    `).join("");
-
-    renderAlertsPagination();
-}
-
-function resetAlertsPageAndReload() {
-    state.alertsPage = 1;
-    loadAlerts().catch(handleError);
-}
-
-function resetRecordsPageAndReload() {
-    state.recordsPage = 1;
-    loadRecords().catch(handleError);
-}
-
-function changeProfilesPage(offset) {
-    const nextPage = state.profilesPage + offset;
-    const totalPages = getProfilesTotalPages();
-    if (nextPage < 1 || nextPage > totalPages) {
-        return;
-    }
-    state.profilesPage = nextPage;
-    renderProfiles();
-}
-
-function changeRecordsPage(offset) {
-    const nextPage = state.recordsPage + offset;
-    const totalPages = getRecordsTotalPages();
-    if (nextPage < 1 || nextPage > totalPages) {
-        return;
-    }
-    state.recordsPage = nextPage;
-    renderRecords();
-}
-
-function changeAlertsPage(offset) {
-    const nextPage = state.alertsPage + offset;
-    const totalPages = getAlertsTotalPages();
-    if (nextPage < 1 || nextPage > totalPages) {
-        return;
-    }
-    state.alertsPage = nextPage;
-    renderAlerts();
-}
-
-function getProfilesTotalPages() {
-    return getTotalPages(state.profiles.length, state.profilesPageSize);
-}
-
-function getCurrentProfilePageItems() {
-    return paginateItems(state.profiles, state.profilesPage, state.profilesPageSize);
-}
-
-function renderProfilesPagination() {
-    renderPaginationBar({
-        container: elements.profilesPagination,
-        infoElement: elements.profilePageInfo,
-        prevButton: elements.profilePrevPage,
-        nextButton: elements.profileNextPage,
-        page: state.profilesPage,
-        totalItems: state.profiles.length,
-        pageSize: state.profilesPageSize
-    });
-}
-
-function getRecordsTotalPages() {
-    return getTotalPages(state.records.length, state.recordsPageSize);
-}
-
-function getCurrentRecordPageItems() {
-    return paginateItems(state.records, state.recordsPage, state.recordsPageSize);
-}
-
-function renderRecordsPagination() {
-    renderPaginationBar({
-        container: elements.recordsPagination,
-        infoElement: elements.recordPageInfo,
-        prevButton: elements.recordPrevPage,
-        nextButton: elements.recordNextPage,
-        page: state.recordsPage,
-        totalItems: state.records.length,
-        pageSize: state.recordsPageSize
-    });
-}
-
-function getAlertsTotalPages() {
-    return getTotalPages(state.alerts.length, state.alertsPageSize);
-}
-
-function getCurrentAlertPageItems() {
-    return paginateItems(state.alerts, state.alertsPage, state.alertsPageSize);
-}
-
-function renderAlertsPagination() {
-    renderPaginationBar({
-        container: elements.alertsPagination,
-        infoElement: elements.alertPageInfo,
-        prevButton: elements.alertPrevPage,
-        nextButton: elements.alertNextPage,
-        page: state.alertsPage,
-        totalItems: state.alerts.length,
-        pageSize: state.alertsPageSize
-    });
-    return;
-
-    const totalItems = state.alerts.length;
-    const totalPages = getAlertsTotalPages();
-
-    if (totalItems === 0) {
-        elements.alertsPagination.hidden = true;
-        elements.alertPageInfo.textContent = "第 1 页 / 共 1 页";
-        elements.alertPrevPage.disabled = true;
-        elements.alertNextPage.disabled = true;
-        return;
-    }
-
-    const startIndex = (state.alertsPage - 1) * state.alertsPageSize + 1;
-    const endIndex = Math.min(state.alertsPage * state.alertsPageSize, totalItems);
-
-    elements.alertsPagination.hidden = false;
-    elements.alertPageInfo.textContent =
-        `第 ${state.alertsPage} 页 / 共 ${totalPages} 页 · 当前显示 ${startIndex}-${endIndex} 条，共 ${totalItems} 条`;
-    elements.alertPrevPage.disabled = state.alertsPage <= 1;
-    elements.alertNextPage.disabled = state.alertsPage >= totalPages;
-}
-
-async function openProfileDetail(profileId, options = {}) {
-    state.activeProfileDetailId = profileId;
-    state.aiConsultation = null;
-    state.aiLoading = false;
-    renderAiResponse();
-    elements.aiQuestion.value = "";
-    elements.aiConsultationHint.textContent = "仅在你主动点击按钮时才会调用 DeepSeek。";
-
-    elements.aiConsultationHint.textContent = "可补充具体问题后再分析。";
-
-    if (!options.keepOpen) {
-        openModal("profileDetailModal");
-    }
-
-    renderDetailLoading();
-
-    try {
-        state.activeProfileDetail = await fetchJson(`/api/profiles/${profileId}/detail`);
-        renderProfileDetail();
-    } catch (error) {
-        state.activeProfileDetail = null;
-        closeModal("profileDetailModal");
-        throw error;
-    }
-}
-
-async function refreshOpenProfileDetail(options = {}) {
-    if (!state.activeProfileDetailId || elements.profileDetailModal.hidden) {
-        return;
-    }
-
-    const { resetAi = false } = options;
-    if (resetAi) {
-        state.aiConsultation = null;
-        state.aiLoading = false;
-        renderAiResponse();
-    }
-
-    state.activeProfileDetail = await fetchJson(`/api/profiles/${state.activeProfileDetailId}/detail`);
-    renderProfileDetail();
-}
-
-function renderDetailLoading() {
-    elements.detailName.textContent = "成员档案详情";
-    elements.detailSubtitle.textContent = "正在加载该成员的趋势追踪与个性化建议...";
-    elements.detailHeaderCards.innerHTML = `<div class="empty-state">正在加载概览信息...</div>`;
-    elements.detailProfileGrid.innerHTML = `<div class="empty-state">正在加载档案信息...</div>`;
-    elements.detailSuggestions.innerHTML = `<li class="empty-state">正在整理建议...</li>`;
-    elements.trendGrid.innerHTML = `<div class="empty-state">正在计算趋势变化...</div>`;
-    elements.latestMetrics.innerHTML = `<div class="empty-state">正在加载最新指标...</div>`;
-    elements.detailAlertsFeed.innerHTML = `<div class="empty-state">正在加载预警信息...</div>`;
-    elements.detailRecordsBody.innerHTML = renderEmptyRow("正在加载近期记录...", 6);
-}
-
-function renderProfileDetail() {
-    const detail = state.activeProfileDetail;
-    if (!detail) {
-        return;
-    }
-
-    const profile = detail.profile;
-    const latestRecord = detail.latestRecord;
-    const recentAlerts = ensureArray(detail.recentAlerts);
-    const recentRecords = ensureArray(detail.recentRecords);
-    const trends = ensureArray(detail.trends);
-    const suggestions = ensureArray(detail.personalizedSuggestions);
-
-    elements.detailName.textContent = profile.fullName;
-    elements.detailSubtitle.textContent = [
-        profile.relationToUser || "家庭成员",
-        enumLabels.gender[profile.gender] || profile.gender,
-        profile.age ? `${profile.age}岁` : null
-    ].filter(Boolean).join(" · ");
-
-    elements.detailHeaderCards.innerHTML = [
-        renderDetailCard(
-            "当前风险",
-            latestRecord?.riskLevel ? enumLabels.riskLevel[latestRecord.riskLevel] : "暂无评估",
-            latestRecord ? `风险分 ${latestRecord.riskScore ?? "-"} · ${formatDate(latestRecord.recordDate)}` : "需要先录入健康记录"
-        ),
-        renderDetailCard(
-            "趋势追踪",
-            `${recentRecords.length} 条记录`,
-            trends.length > 0 ? `已分析 ${trends.length} 项连续趋势` : "记录达到 2 条后更容易识别变化"
-        ),
-        renderDetailCard(
-            "近期预警",
-            `${recentAlerts.length} 条`,
-            recentAlerts.length > 0 ? "可在下方查看异常指标与处理状态" : "当前暂无新的预警提醒"
-        )
-    ].join("");
-
-    elements.detailProfileGrid.innerHTML = [
-        infoItem("关系", profile.relationToUser),
-        infoItem("性别", enumLabels.gender[profile.gender] || profile.gender),
-        infoItem("年龄", profile.age ? `${profile.age}岁` : null),
-        infoItem("出生日期", formatDate(profile.birthDate)),
-        infoItem("血型", formatEnum(profile.bloodType, enumLabels.bloodType)),
-        infoItem("职业", profile.occupation),
-        infoItem("身高 / 体重", `${formatMetric(profile.heightCm, "cm")} / ${formatMetric(profile.weightKg, "kg")}`),
-        infoItem("吸烟情况", formatEnum(profile.smokingStatus, enumLabels.smokingStatus)),
-        infoItem("饮酒情况", formatEnum(profile.alcoholUseStatus, enumLabels.alcoholUseStatus)),
-        infoItem("慢性病史", profile.chronicDiseases),
-        infoItem("当前用药", profile.currentMedications),
-        infoItem("手术史", profile.surgeryHistory),
-        infoItem("过敏信息", profile.allergies),
-        infoItem("家族病史", profile.familyHistory),
-        infoItem("运动习惯", profile.exerciseHabit),
-        infoItem("健康目标", profile.careGoals),
-        infoItem("联系方式", profile.phone || profile.email ? [profile.phone, profile.email].filter(Boolean).join(" / ") : null),
-        infoItem(
-            "紧急联系人",
-            profile.emergencyContact || profile.emergencyContactPhone
-                ? [profile.emergencyContact, profile.emergencyContactPhone].filter(Boolean).join(" / ")
-                : null
-        ),
-        infoItem("备注", profile.notes)
-    ].join("");
-
-    elements.detailSuggestions.innerHTML = suggestions.length > 0
-        ? suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
-        : `<li>当前建议暂时不足，继续记录更多健康数据后会更准确。</li>`;
-
-    elements.trendGrid.innerHTML = trends.length > 0
-        ? trends.map((trend) => renderTrendCard(trend)).join("")
-        : `<div class="empty-state">至少有 2 条记录后，系统会在这里展示趋势变化。</div>`;
-
-    elements.latestMetrics.innerHTML = latestRecord
-        ? renderLatestMetrics(latestRecord)
-        : `<div class="empty-state">暂无最新健康记录。</div>`;
-
-    elements.detailAlertsFeed.innerHTML = recentAlerts.length > 0
-        ? recentAlerts.map((alert) => `
-            <article class="alert-feed-item">
-                <div class="alert-feed-meta">
-                    ${renderBadge(alert.severity, "severity")}
-                    ${renderBadge(alert.status, "status")}
-                </div>
-                <h4>${escapeHtml(alert.title)}</h4>
-                <div class="muted-text">${formatDate(alert.observedDate)} · ${escapeHtml(alert.indicator || "系统综合判断")}</div>
-                <p>${escapeHtml(alert.suggestion || "请结合近期记录持续观察。")}</p>
-            </article>
-        `).join("")
-        : `<div class="empty-state">暂无预警信息。</div>`;
-
-    elements.detailRecordsBody.innerHTML = recentRecords.length > 0
-        ? recentRecords.map((record) => `
-            <tr>
-                <td>${formatDate(record.recordDate)}</td>
-                <td>${formatBloodPressure(record.systolicPressure, record.diastolicPressure)}</td>
-                <td>${formatBloodSugar(record.fastingBloodSugar, record.postprandialBloodSugar)}</td>
-                <td>${formatMetric(record.sleepHours, "h")}</td>
-                <td>${formatExerciseSummary(record)}</td>
-                <td>${renderBadge(record.riskLevel, "risk")}</td>
-            </tr>
-        `).join("")
-        : renderEmptyRow("暂无近期记录", 6);
-}
-
-function renderDetailCard(label, value, description) {
+    const total = dashboard.totalRecords || 0;
     return `
-        <article class="detail-card">
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value)}</strong>
-            <p>${escapeHtml(description)}</p>
-        </article>
+        <div class="page-grid">
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <span>档案完整度</span>
+                    <strong>${dashboard.profileCompletionScore ?? 0}%</strong>
+                </div>
+                <div class="stat-card">
+                    <span>健康记录</span>
+                    <strong>${dashboard.totalRecords ?? 0}</strong>
+                </div>
+                <div class="stat-card">
+                    <span>待处理预警</span>
+                    <strong>${dashboard.pendingAlerts ?? 0}</strong>
+                </div>
+                <div class="stat-card">
+                    <span>最近风险等级</span>
+                    <strong>${dashboard.latestRiskLevel ? enumLabels.riskLevel[dashboard.latestRiskLevel] : "暂无"}</strong>
+                </div>
+            </div>
+
+            ${!dashboard.profileExists ? `<div class="callout">请先完善个人档案。</div>` : ""}
+
+            <section class="panel">
+                <div class="section-head">
+                    <h3>风险分布</h3>
+                    <button class="btn-ghost" type="button" data-action="refresh-dashboard">刷新</button>
+                </div>
+                <div class="risk-bars">
+                    ${["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((level) => {
+                        const count = dashboard.riskDistribution?.[level] ?? 0;
+                        const width = total > 0 ? Math.max((count / total) * 100, count > 0 ? 6 : 0) : 0;
+                        return `
+                            <div class="risk-bar">
+                                <div class="risk-bar-head">
+                                    <strong>${enumLabels.riskLevel[level]}</strong>
+                                    <span class="muted-text">${count} 条</span>
+                                </div>
+                                <div class="risk-track"><span style="width:${width}%"></span></div>
+                            </div>
+                        `;
+                    }).join("")}
+                </div>
+            </section>
+
+            <div class="two-column">
+                <section class="table-shell">
+                    <div class="section-head"><h3>近期记录</h3></div>
+                    ${renderRecordsTable(dashboard.recentRecords || [], false)}
+                </section>
+                <section class="panel">
+                    <div class="section-head"><h3>近期预警</h3></div>
+                    ${renderAlertFeed(dashboard.recentAlerts || [])}
+                </section>
+            </div>
+        </div>
     `;
 }
 
-function renderTrendCard(trend) {
-    const trendClass = directionClass(trend.direction);
-    const latestValue = `${formatMetric(trend.latestValue, trend.unit || "")}`;
-    const changeText = trend.previousValue == null
-        ? "暂无上一次记录"
-        : `${formatSignedMetric(trend.changeValue, trend.unit || "")} · 相比上一条`;
+function renderProfilePage() {
+    const detail = state.profileDetail;
+    const profile = detail.profile || {};
+    return `
+        <div class="page-grid">
+            <div class="two-column">
+                <section class="panel">
+                    <div class="section-head">
+                        <h3>个人档案维护</h3>
+                        <span class="badge ${profile.completionScore >= 80 ? "low" : profile.completionScore >= 50 ? "medium" : "high"}">
+                            完整度 ${profile.completionScore ?? 0}%
+                        </span>
+                    </div>
+                    <form id="profileForm" class="form-grid">
+                        ${renderProfileFields(profile)}
+                        <div class="full-span">
+                            <button class="btn" type="submit">保存档案</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="section-head"><h3>档案洞察</h3></div>
+                    <div class="detail-grid">
+                        <div class="card">
+                            <span class="muted-text">最近记录日期</span>
+                            <strong>${formatDate(detail.latestRecord?.recordDate)}</strong>
+                        </div>
+                        <div class="card">
+                            <span class="muted-text">当前风险等级</span>
+                            <strong>${detail.latestRecord?.riskLevel ? enumLabels.riskLevel[detail.latestRecord.riskLevel] : "暂无"}</strong>
+                        </div>
+                    </div>
+                    <div class="suggestion-list" style="margin-top:16px;">
+                        ${detail.personalizedSuggestions?.length
+                            ? detail.personalizedSuggestions.map((item) => `<div class="feed-item">${escapeHtml(item)}</div>`).join("")
+                            : `<div class="empty-shell">暂无个性化建议。</div>`}
+                    </div>
+                </section>
+            </div>
+
+            <section class="panel">
+                <div class="section-head"><h3>近期趋势摘要</h3></div>
+                <div class="three-column">
+                    ${detail.trends?.length
+                        ? detail.trends.map((trend) => `
+                            <div class="card">
+                                <div class="section-head">
+                                    <div>
+                                        <h4>${escapeHtml(trend.metricName)}</h4>
+                                        <p>${escapeHtml(trend.direction)}</p>
+                                    </div>
+                                    <span class="badge ${trend.direction === "上升" ? "medium" : "low"}">${escapeHtml(trend.direction)}</span>
+                                </div>
+                                <strong>${formatMetric(trend.latestValue, trend.unit)}</strong>
+                                <div class="muted-text">较前次 ${formatSignedMetric(trend.changeValue, trend.unit)}</div>
+                                <div class="muted-text" style="margin-top:8px;">${escapeHtml(trend.interpretation)}</div>
+                            </div>
+                        `).join("")
+                        : `<div class="empty-shell full-span">暂无趋势数据，请先录入健康记录。</div>`}
+                </div>
+            </section>
+        </div>
+    `;
+}
+
+function renderProfileFields(profile) {
+    return `
+        <label class="form-field">
+            姓名
+            <input name="fullName" type="text" value="${escapeAttr(profile.fullName || "")}" required>
+        </label>
+        <label class="form-field">
+            性别
+            <select name="gender">
+                <option value="">请选择</option>
+                ${renderSelectOptions(enumLabels.gender, profile.gender || "")}
+            </select>
+        </label>
+        <label class="form-field">
+            年龄
+            <input name="age" type="number" min="1" max="120" value="${escapeAttr(profile.age ?? "")}">
+        </label>
+        <label class="form-field">
+            出生日期
+            <input name="birthDate" type="date" value="${escapeAttr(profile.birthDate || "")}">
+        </label>
+        <label class="form-field">
+            血型
+            <select name="bloodType">
+                <option value="">请选择</option>
+                ${renderSelectOptions(enumLabels.bloodType, profile.bloodType || "")}
+            </select>
+        </label>
+        <label class="form-field">
+            手机号
+            <input name="phone" type="text" value="${escapeAttr(profile.phone || "")}">
+        </label>
+        <label class="form-field">
+            邮箱
+            <input name="email" type="email" value="${escapeAttr(profile.email || "")}">
+        </label>
+        <label class="form-field">
+            职业
+            <input name="occupation" type="text" value="${escapeAttr(profile.occupation || "")}">
+        </label>
+        <label class="form-field">
+            身高(cm)
+            <input name="heightCm" type="number" step="0.01" min="50" max="250" value="${escapeAttr(profile.heightCm ?? "")}">
+        </label>
+        <label class="form-field">
+            体重(kg)
+            <input name="weightKg" type="number" step="0.01" min="20" max="300" value="${escapeAttr(profile.weightKg ?? "")}">
+        </label>
+        <label class="form-field">
+            吸烟情况
+            <select name="smokingStatus">
+                <option value="">请选择</option>
+                ${renderSelectOptions(enumLabels.smokingStatus, profile.smokingStatus || "")}
+            </select>
+        </label>
+        <label class="form-field">
+            饮酒情况
+            <select name="alcoholUseStatus">
+                <option value="">请选择</option>
+                ${renderSelectOptions(enumLabels.alcoholUseStatus, profile.alcoholUseStatus || "")}
+            </select>
+        </label>
+        <label class="form-field full-span"><span>家族病史</span><textarea name="familyHistory">${escapeHtml(profile.familyHistory || "")}</textarea></label>
+        <label class="form-field full-span"><span>慢性病史</span><textarea name="chronicDiseases">${escapeHtml(profile.chronicDiseases || "")}</textarea></label>
+        <label class="form-field full-span"><span>过敏信息</span><textarea name="allergies">${escapeHtml(profile.allergies || "")}</textarea></label>
+        <label class="form-field full-span"><span>当前用药</span><textarea name="currentMedications">${escapeHtml(profile.currentMedications || "")}</textarea></label>
+        <label class="form-field full-span"><span>手术史</span><textarea name="surgeryHistory">${escapeHtml(profile.surgeryHistory || "")}</textarea></label>
+        <label class="form-field full-span"><span>运动习惯</span><textarea name="exerciseHabit">${escapeHtml(profile.exerciseHabit || "")}</textarea></label>
+        <label class="form-field full-span"><span>健康目标</span><textarea name="careGoals">${escapeHtml(profile.careGoals || "")}</textarea></label>
+        <label class="form-field">
+            紧急联系人
+            <input name="emergencyContact" type="text" value="${escapeAttr(profile.emergencyContact || "")}">
+        </label>
+        <label class="form-field">
+            紧急联系人电话
+            <input name="emergencyContactPhone" type="text" value="${escapeAttr(profile.emergencyContactPhone || "")}">
+        </label>
+        <label class="form-field full-span"><span>备注</span><textarea name="notes">${escapeHtml(profile.notes || "")}</textarea></label>
+    `;
+}
+
+function renderRecordsPage() {
+    return `
+        <div class="page-grid">
+            <section class="table-shell">
+                <div class="section-head">
+                    <h3>健康记录列表</h3>
+                    <button class="btn" type="button" data-action="open-record-create">新增记录</button>
+                </div>
+                <div class="toolbar">
+                    <label>
+                        风险筛选
+                        <select id="recordRiskFilter">
+                            <option value="">全部风险</option>
+                            ${renderSelectOptions(enumLabels.riskLevel, state.records.riskLevel)}
+                        </select>
+                    </label>
+                </div>
+                ${renderRecordsTable(state.records.items, true)}
+                ${renderPagination(state.records, "records")}
+            </section>
+        </div>
+    `;
+}
+
+function renderAlertsPage() {
+    return `
+        <div class="page-grid">
+            <section class="table-shell">
+                <div class="section-head"><h3>预警列表</h3></div>
+                <div class="toolbar">
+                    <label>
+                        处理状态
+                        <select id="alertStatusFilter">
+                            <option value="">全部状态</option>
+                            ${renderSelectOptions(enumLabels.alertStatus, state.alerts.status)}
+                        </select>
+                    </label>
+                    <label>
+                        严重级别
+                        <select id="alertSeverityFilter">
+                            <option value="">全部级别</option>
+                            ${renderSelectOptions(enumLabels.alertSeverity, state.alerts.severity)}
+                        </select>
+                    </label>
+                </div>
+                ${renderAlertsTable(state.alerts.items)}
+                ${renderPagination(state.alerts, "alerts")}
+            </section>
+        </div>
+    `;
+}
+
+function renderImportsPage() {
+    return `
+        <div class="page-grid">
+            <section class="panel">
+                <div class="section-head"><h3>导入健康文档</h3></div>
+                <form id="importForm" class="page-grid">
+                    <div class="import-dropzone">
+                        <label class="form-field">
+                            选择文件
+                            <input name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.bmp,.txt" required>
+                        </label>
+                        <button class="btn" type="submit">开始识别并入档</button>
+                    </div>
+                </form>
+            </section>
+            ${renderImportResult()}
+        </div>
+    `;
+}
+
+function renderImportResult() {
+    const result = state.importResult;
+    if (!result) {
+        return renderEmpty("导入结果会显示在这里。");
+    }
 
     return `
-        <article class="trend-card ${trendClass}">
-            <div class="trend-header">
+        <section class="panel">
+            <div class="section-head"><h3>最近一次导入结果</h3></div>
+            <div class="import-result-grid">
+                <div class="callout">${escapeHtml(result.disclaimer)}</div>
+                <div class="muted-text">${escapeHtml(result.fileName || "未命名文件")} · ${escapeHtml(result.extractionMethod)}</div>
+                <div class="chip-list">
+                    ${(result.matchedFields || []).map((field) => `<span class="chip">${escapeHtml(field)}</span>`).join("") || "<span class='muted-text'>暂无匹配字段</span>"}
+                </div>
+                ${(result.warnings || []).length ? `
+                    <div class="callout danger">
+                        ${(result.warnings || []).map((item) => `<div>${escapeHtml(item)}</div>`).join("")}
+                    </div>
+                ` : ""}
+                <div class="two-column">
+                    <div class="card">
+                        <span class="muted-text">档案姓名</span>
+                        <strong>${escapeHtml(result.profile?.fullName || "-")}</strong>
+                    </div>
+                    <div class="card">
+                        <span class="muted-text">是否生成记录</span>
+                        <strong>${result.archivedRecord ? "已生成" : "未生成"}</strong>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="section-head"><h4>识别文本预览</h4></div>
+                    <div class="ai-answer">${escapeHtml(result.extractedTextPreview || "")}</div>
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+function renderVisualizationPage() {
+    const visualization = state.visualization;
+    if (!visualization) {
+        return renderEmpty("正在加载图表数据。");
+    }
+
+    return `
+        <div class="page-grid">
+            <section class="panel">
+                <div class="section-head">
+                    <h3>指标趋势图</h3>
+                    <button class="btn-ghost" type="button" data-action="refresh-visualization">刷新图表</button>
+                </div>
+                <div class="chart-grid">
+                    ${(visualization.series || []).length
+                        ? visualization.series.map((series) => renderChartCard(series)).join("")
+                        : `<div class="empty-shell full-span">暂无可视化数据，请先录入或导入健康记录。</div>`}
+                </div>
+            </section>
+            <section class="table-shell">
+                <div class="section-head"><h3>最近 10 条记录</h3></div>
+                ${renderRecordsTable(visualization.latestRecords || [], false)}
+            </section>
+        </div>
+    `;
+}
+
+function renderAiPage() {
+    const detail = state.profileDetail;
+    return `
+        <div class="page-grid">
+            <div class="callout danger">
+                AI 分析仅作为健康管理参考，不能替代医生诊断与治疗建议。若出现身体不适症状，请立即就医。
+            </div>
+            <section class="panel">
+                <div class="section-head"><h3>发起 AI 分析</h3></div>
+                <form id="aiForm" class="page-grid">
+                    <label class="form-field">
+                        关联记录
+                        <select name="focusRecordId">
+                            <option value="">默认使用最近一次记录</option>
+                            ${(detail.recentRecords || []).map((record) => `
+                                <option value="${record.id}">
+                                    ${formatDate(record.recordDate)} · ${enumLabels.riskLevel[record.riskLevel] || "未评估"}
+                                </option>
+                            `).join("")}
+                        </select>
+                    </label>
+                    <label class="form-field full-span">
+                        具体问题
+                        <textarea name="question" placeholder="例如：最近血糖和睡眠同时波动，下一步应该重点关注什么？"></textarea>
+                    </label>
+                    <div class="full-span">
+                        <button class="btn" type="submit" ${state.ai.loading ? "disabled" : ""}>
+                            ${state.ai.loading ? "分析中..." : "开始 AI 分析"}
+                        </button>
+                    </div>
+                </form>
+            </section>
+            <section class="panel">
+                <div class="section-head"><h3>分析结果</h3></div>
+                ${state.ai.result ? `
+                    <div class="page-grid">
+                        <div class="muted-text">模型：${escapeHtml(state.ai.result.model || "-")}</div>
+                        <div class="ai-answer">${escapeHtml(state.ai.result.answer || "")}</div>
+                        <div class="callout danger">${escapeHtml(state.ai.result.disclaimer || "")}</div>
+                    </div>
+                ` : `<div class="empty-shell">尚未发起 AI 分析。</div>`}
+            </section>
+        </div>
+    `;
+}
+
+function renderRecordsTable(records, withActions) {
+    if (!records || records.length === 0) {
+        return renderEmpty("暂无健康记录。");
+    }
+
+    return `
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>血压</th>
+                    <th>血糖</th>
+                    <th>体重 / BMI</th>
+                    <th>睡眠 / 运动</th>
+                    <th>风险</th>
+                    ${withActions ? "<th>操作</th>" : ""}
+                </tr>
+                </thead>
+                <tbody>
+                ${records.map((record) => `
+                    <tr>
+                        <td>${formatDate(record.recordDate)}</td>
+                        <td>${formatBloodPressure(record.systolicPressure, record.diastolicPressure)}</td>
+                        <td>${formatBloodSugar(record.fastingBloodSugar, record.postprandialBloodSugar)}</td>
+                        <td>${formatMetric(record.weightKg, "kg")} / ${formatMetric(record.bmi)}</td>
+                        <td>${formatMetric(record.sleepHours, "h")} / ${formatMetric(record.exerciseMinutes, "min")}</td>
+                        <td>${renderBadge(record.riskLevel, "risk")}</td>
+                        ${withActions ? `
+                            <td>
+                                <div class="table-actions">
+                                    <button class="mini-btn" type="button" data-action="open-record-edit" data-id="${record.id}">编辑</button>
+                                    <button class="mini-btn danger" type="button" data-action="delete-record" data-id="${record.id}">删除</button>
+                                </div>
+                            </td>
+                        ` : ""}
+                    </tr>
+                `).join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderAlertsTable(alerts) {
+    if (!alerts || alerts.length === 0) {
+        return renderEmpty("暂无预警信息。");
+    }
+
+    return `
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>标题</th>
+                    <th>指标说明</th>
+                    <th>严重级别</th>
+                    <th>处理状态</th>
+                    <th>建议</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                ${alerts.map((alert) => `
+                    <tr>
+                        <td>${formatDate(alert.observedDate)}</td>
+                        <td>${escapeHtml(alert.title)}</td>
+                        <td>${escapeHtml(alert.indicator || "-")}</td>
+                        <td>${renderBadge(alert.severity, "severity")}</td>
+                        <td>${renderBadge(alert.status, "status")}</td>
+                        <td>${escapeHtml(truncate(alert.suggestion, 64))}</td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="mini-btn warning" type="button" data-action="open-alert-status" data-id="${alert.id}">处理</button>
+                                <button class="mini-btn danger" type="button" data-action="delete-alert" data-id="${alert.id}">删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderAlertFeed(alerts) {
+    if (!alerts || alerts.length === 0) {
+        return renderEmpty("暂无预警数据。");
+    }
+    return `
+        <div class="feed-list">
+            ${alerts.map((alert) => `
+                <div class="feed-item">
+                    <div class="table-actions">
+                        ${renderBadge(alert.severity, "severity")}
+                        ${renderBadge(alert.status, "status")}
+                    </div>
+                    <h4>${escapeHtml(alert.title)}</h4>
+                    <div class="muted-text">${formatDate(alert.observedDate)}</div>
+                    <p>${escapeHtml(alert.suggestion || "")}</p>
+                </div>
+            `).join("")}
+        </div>
+    `;
+}
+
+function renderChartCard(series) {
+    const path = buildChartPath(series.points || []);
+    return `
+        <div class="chart-card">
+            <div class="section-head">
                 <div>
-                    <strong>${escapeHtml(trend.metricName)}</strong>
-                    <div class="muted-text">${escapeHtml(trend.interpretation || "暂无解释")}</div>
+                    <h4>${escapeHtml(series.metricName)}</h4>
+                    <p>${escapeHtml(series.unit || "")}</p>
                 </div>
-                <span class="trend-chip ${trendClass}">${escapeHtml(trend.direction || "稳定")}</span>
             </div>
-            <div class="trend-value">${escapeHtml(latestValue)}</div>
-            <div class="muted-text">${escapeHtml(changeText)}</div>
-            ${renderSparkline(trend.points, trend.metricName)}
-        </article>
+            <div class="chart-meta">
+                <span>最新值 ${formatMetric(series.latestValue, series.unit)}</span>
+                <span>均值 ${formatMetric(series.averageValue, series.unit)}</span>
+            </div>
+            <svg viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
+                <polyline points="${path}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            </svg>
+        </div>
     `;
 }
 
-function renderLatestMetrics(record) {
-    const metricItems = [
-        ["血压", formatBloodPressure(record.systolicPressure, record.diastolicPressure)],
-        ["空腹血糖", formatMetric(record.fastingBloodSugar, "mmol/L")],
-        ["餐后血糖", formatMetric(record.postprandialBloodSugar, "mmol/L")],
-        ["体重", formatMetric(record.weightKg, "kg")],
-        ["腰围", formatMetric(record.waistCircumferenceCm, "cm")],
-        ["BMI", formatMetric(record.bmi)],
-        ["心率", formatMetric(record.heartRate, "次/分")],
-        ["血氧", formatMetric(record.bloodOxygen, "%")],
-        ["睡眠", formatMetric(record.sleepHours, "h")],
-        ["运动", formatExerciseSummary(record)],
-        ["饮水", formatMetric(record.waterIntakeMl, "ml")],
-        ["情绪 / 压力", formatMoodStress(record)],
-        ["症状", record.symptoms || "-"],
-        ["用药记录", record.medicationTaken || "-"],
-        ["系统摘要", record.summary || "-"],
-        ["备注", record.notes || "-"]
-    ];
-
-    return metricItems.map(([label, value]) => `
-        <div class="metric-kv">
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value)}</strong>
+function renderPagination(data, prefix) {
+    return `
+        <div class="pagination">
+            <span class="muted-text">第 ${data.page} / ${data.totalPages} 页，共 ${data.totalItems} 条</span>
+            <div class="table-actions">
+                <button class="btn-ghost" type="button" data-action="${prefix}-prev" ${data.page <= 1 ? "disabled" : ""}>上一页</button>
+                <button class="btn-ghost" type="button" data-action="${prefix}-next" ${data.page >= data.totalPages ? "disabled" : ""}>下一页</button>
+            </div>
         </div>
-    `).join("");
+    `;
 }
 
-async function triggerAiConsultation() {
-    if (!state.activeProfileDetailId) {
-        showToast("请先打开某位成员的档案详情。", true);
+function renderEmpty(text) {
+    return `<div class="empty-shell">${escapeHtml(text)}</div>`;
+}
+
+async function handleClick(event) {
+    const button = event.target.closest("[data-action]");
+    if (!button) {
         return;
     }
 
-    state.aiLoading = true;
-    renderAiResponse();
-    elements.aiConsultationHint.textContent = "正在向 DeepSeek 请求分析，请稍候...";
+    const { action, route, mode, id } = button.dataset;
 
     try {
-        const response = await fetchJson(`/api/profiles/${state.activeProfileDetailId}/ai-consultation`, {
-            method: "POST",
-            body: JSON.stringify({
-                focusRecordId: state.activeProfileDetail?.latestRecord?.id ?? null,
-                question: stringOrNull(elements.aiQuestion.value)
-            })
-        });
-
-        state.aiConsultation = response;
-        elements.aiConsultationHint.textContent = "本次分析由你手动触发，系统不会自动反复调用 AI。";
-        showToast("AI 健康分析已生成。");
-    } finally {
-        state.aiLoading = false;
-        if (state.aiConsultation) {
-            elements.aiConsultationHint.textContent = "分析已更新。";
+        switch (action) {
+            case "auth-tab":
+                state.authMode = mode;
+                render();
+                break;
+            case "navigate":
+                window.location.hash = route;
+                break;
+            case "logout":
+                await api("/api/auth/logout", { method: "POST" });
+                resetToAuth();
+                break;
+            case "refresh-dashboard":
+                await loadDashboard();
+                render();
+                break;
+            case "refresh-visualization":
+                await loadVisualization();
+                render();
+                break;
+            case "open-record-create":
+                openRecordModal();
+                break;
+            case "open-record-edit":
+                openRecordModal(findRecordById(Number(id)));
+                break;
+            case "delete-record":
+                await deleteRecord(Number(id));
+                break;
+            case "records-prev":
+                state.records.page -= 1;
+                await loadRecords();
+                render();
+                break;
+            case "records-next":
+                state.records.page += 1;
+                await loadRecords();
+                render();
+                break;
+            case "open-alert-status":
+                openAlertModal(findAlertById(Number(id)));
+                break;
+            case "delete-alert":
+                await deleteAlert(Number(id));
+                break;
+            case "alerts-prev":
+                state.alerts.page -= 1;
+                await loadAlerts();
+                render();
+                break;
+            case "alerts-next":
+                state.alerts.page += 1;
+                await loadAlerts();
+                render();
+                break;
+            case "close-modal":
+                closeModal();
+                break;
+            default:
+                break;
         }
-        renderAiResponse();
+    } catch (error) {
+        handleError(error);
     }
 }
 
-function renderAiResponse() {
-    if (state.aiLoading) {
-        elements.aiResponseBox.innerHTML = `<div class="empty-state">AI 正在结合档案、趋势和近期记录生成建议...</div>`;
-        return;
-    }
-
-    if (!state.aiConsultation) {
-        elements.aiResponseBox.innerHTML = `<div class="empty-state">尚未发起 AI 咨询。</div>`;
-        return;
-    }
-
-    elements.aiResponseBox.innerHTML = `
-        <div class="ai-response-meta">
-            <span>模型：${escapeHtml(state.aiConsultation.model || "-")}</span>
-            <span>时间：${escapeHtml(formatDateTime(state.aiConsultation.generatedAt))}</span>
-        </div>
-        <div class="ai-response-body">${escapeMultiline(state.aiConsultation.answer)}</div>
-        <div class="ai-response-footnote">上下文摘要：${escapeHtml(state.aiConsultation.contextDigest || "已基于当前成员档案生成")}</div>
-    `;
-}
-
-async function triggerAiConsultation() {
-    if (!state.activeProfileDetailId) {
-        showToast("请先打开成员详情。", true);
-        return;
-    }
-
-    state.aiLoading = true;
-    elements.aiConsultationHint.textContent = "AI 正在生成分析...";
-    renderAiResponse();
-
+async function handleSubmit(event) {
     try {
-        const response = await fetchJson(`/api/profiles/${state.activeProfileDetailId}/ai-consultation`, {
-            method: "POST",
-            body: JSON.stringify({
-                focusRecordId: state.activeProfileDetail?.latestRecord?.id ?? null,
-                question: stringOrNull(elements.aiQuestion.value)
-            })
-        });
-
-        state.aiConsultation = response;
-        elements.aiConsultationHint.textContent = "分析已更新。";
-        showToast("AI 健康分析已生成。");
-    } finally {
-        state.aiLoading = false;
-        renderAiResponse();
-    }
-}
-
-function renderAiResponse() {
-    if (state.aiLoading) {
-        elements.aiResponseBox.innerHTML = `<div class="empty-state">AI 正在生成分析...</div>`;
-        return;
-    }
-
-    if (!state.aiConsultation) {
-        elements.aiResponseBox.innerHTML = `<div class="empty-state">点击“生成 AI 分析”查看建议。</div>`;
-        return;
-    }
-
-    elements.aiResponseBox.innerHTML = `
-        <div class="ai-response-meta">
-            <span>${escapeHtml(formatDateTime(state.aiConsultation.generatedAt))}</span>
-        </div>
-        <div class="ai-response-body">${escapeMultiline(state.aiConsultation.answer)}</div>
-    `;
-}
-
-function handleActionClick(event) {
-    const closeTrigger = event.target.closest("[data-close-modal]");
-    if (closeTrigger) {
-        closeModal(closeTrigger.dataset.closeModal);
-        return;
-    }
-
-    const actionTrigger = event.target.closest("[data-action]");
-    if (!actionTrigger) {
-        return;
-    }
-
-    const id = Number(actionTrigger.dataset.id);
-    const action = actionTrigger.dataset.action;
-
-    if (action === "view-profile") {
-        openProfileDetail(id).catch(handleError);
-        return;
-    }
-    if (action === "edit-profile") {
-        openProfileModal(id);
-        return;
-    }
-    if (action === "delete-profile") {
-        deleteProfile(id).catch(handleError);
-        return;
-    }
-    if (action === "edit-record") {
-        openRecordModal(id);
-        return;
-    }
-    if (action === "delete-record") {
-        deleteRecord(id).catch(handleError);
-        return;
-    }
-    if (action === "edit-alert") {
-        openAlertModal(id);
-        return;
-    }
-    if (action === "delete-alert") {
-        deleteAlert(id).catch(handleError);
-    }
-}
-
-function openProfileModal(id) {
-    state.editingProfileId = id ?? null;
-    resetProfileForm();
-
-    if (id) {
-        const profile = state.profiles.find((item) => item.id === id);
-        if (!profile) {
-            showToast("未找到要编辑的成员档案。", true);
-            return;
+        switch (event.target.id) {
+            case "loginForm":
+                event.preventDefault();
+                await submitLogin(event.target);
+                break;
+            case "registerForm":
+                event.preventDefault();
+                await submitRegister(event.target);
+                break;
+            case "profileForm":
+                event.preventDefault();
+                await submitProfile(event.target);
+                break;
+            case "recordForm":
+                event.preventDefault();
+                await submitRecord(event.target);
+                break;
+            case "alertForm":
+                event.preventDefault();
+                await submitAlert(event.target);
+                break;
+            case "importForm":
+                event.preventDefault();
+                await submitImport(event.target);
+                break;
+            case "aiForm":
+                event.preventDefault();
+                await submitAi(event.target);
+                break;
+            default:
+                break;
         }
-
-        elements.profileModalTitle.textContent = "编辑成员档案";
-        elements.profileName.value = profile.fullName || "";
-        elements.profileRelationToUser.value = profile.relationToUser || "";
-        elements.profileGender.value = profile.gender || "MALE";
-        elements.profileAge.value = profile.age ?? "";
-        elements.profileBirthDate.value = profile.birthDate || "";
-        elements.profileBloodType.value = profile.bloodType || "";
-        elements.profilePhone.value = profile.phone || "";
-        elements.profileEmail.value = profile.email || "";
-        elements.profileOccupation.value = profile.occupation || "";
-        elements.profileHeight.value = profile.heightCm ?? "";
-        elements.profileWeight.value = profile.weightKg ?? "";
-        elements.profileSmokingStatus.value = profile.smokingStatus || "";
-        elements.profileAlcoholUseStatus.value = profile.alcoholUseStatus || "";
-        elements.profileEmergencyContact.value = profile.emergencyContact || "";
-        elements.profileEmergencyContactPhone.value = profile.emergencyContactPhone || "";
-        elements.profileFamilyHistory.value = profile.familyHistory || "";
-        elements.profileChronicDiseases.value = profile.chronicDiseases || "";
-        elements.profileCurrentMedications.value = profile.currentMedications || "";
-        elements.profileSurgeryHistory.value = profile.surgeryHistory || "";
-        elements.profileAllergies.value = profile.allergies || "";
-        elements.profileExerciseHabit.value = profile.exerciseHabit || "";
-        elements.profileCareGoals.value = profile.careGoals || "";
-        elements.profileNotes.value = profile.notes || "";
-    } else {
-        elements.profileModalTitle.textContent = "新增成员档案";
+    } catch (error) {
+        handleError(error);
     }
-
-    openModal("profileModal");
 }
 
-function openRecordModal(id) {
-    if (state.profiles.length === 0) {
-        showToast("请先创建成员档案，再录入健康记录。", true);
-        return;
-    }
-
-    state.editingRecordId = id ?? null;
-    resetRecordForm();
-
-    if (id) {
-        const record = state.records.find((item) => item.id === id);
-        if (!record) {
-            showToast("未找到要编辑的健康记录。", true);
-            return;
+async function handleChange(event) {
+    try {
+        if (event.target.id === "recordRiskFilter") {
+            state.records.riskLevel = event.target.value;
+            state.records.page = 1;
+            await loadRecords();
+            render();
         }
-
-        elements.recordModalTitle.textContent = "编辑健康记录";
-        elements.recordProfileId.value = String(record.profile.id);
-        elements.recordDate.value = record.recordDate || todayString();
-        elements.recordWeight.value = record.weightKg ?? "";
-        elements.recordWaistCircumference.value = record.waistCircumferenceCm ?? "";
-        elements.recordSystolic.value = record.systolicPressure ?? "";
-        elements.recordDiastolic.value = record.diastolicPressure ?? "";
-        elements.recordHeartRate.value = record.heartRate ?? "";
-        elements.recordBloodSugar.value = record.fastingBloodSugar ?? "";
-        elements.recordPostprandialBloodSugar.value = record.postprandialBloodSugar ?? "";
-        elements.recordTemperature.value = record.bodyTemperature ?? "";
-        elements.recordOxygen.value = record.bloodOxygen ?? "";
-        elements.recordCholesterol.value = record.cholesterolTotal ?? "";
-        elements.recordSleepHours.value = record.sleepHours ?? "";
-        elements.recordExerciseMinutes.value = record.exerciseMinutes ?? "";
-        elements.recordStepsCount.value = record.stepsCount ?? "";
-        elements.recordWaterIntakeMl.value = record.waterIntakeMl ?? "";
-        elements.recordStressLevel.value = record.stressLevel ?? "";
-        elements.recordMoodScore.value = record.moodScore ?? "";
-        elements.recordSymptoms.value = record.symptoms || "";
-        elements.recordMedicationTaken.value = record.medicationTaken || "";
-        elements.recordNotes.value = record.notes || "";
-    } else {
-        elements.recordModalTitle.textContent = "新增健康记录";
-    }
-
-    openModal("recordModal");
-}
-
-function openAlertModal(id) {
-    const alert = state.alerts.find((item) => item.id === id);
-    if (!alert) {
-        showToast("未找到要处理的预警信息。", true);
-        return;
-    }
-
-    state.editingAlertId = id;
-    elements.alertForm.reset();
-    elements.alertStatus.value = alert.status || "PENDING";
-    elements.alertHandledNote.value = alert.handledNote || "";
-    openModal("alertModal");
-}
-
-function openModal(id) {
-    document.body.classList.add("modal-open");
-    document.getElementById(id).hidden = false;
-}
-
-function closeModal(id) {
-    document.getElementById(id).hidden = true;
-    if (id === "profileDetailModal") {
-        state.aiLoading = false;
-    }
-    if (!modalIds.some((modalId) => !document.getElementById(modalId).hidden)) {
-        document.body.classList.remove("modal-open");
+        if (event.target.id === "alertStatusFilter") {
+            state.alerts.status = event.target.value;
+            state.alerts.page = 1;
+            await loadAlerts();
+            render();
+        }
+        if (event.target.id === "alertSeverityFilter") {
+            state.alerts.severity = event.target.value;
+            state.alerts.page = 1;
+            await loadAlerts();
+            render();
+        }
+    } catch (error) {
+        handleError(error);
     }
 }
 
-function resetProfileForm() {
-    elements.profileForm.reset();
-    elements.profileGender.value = "MALE";
-    elements.profileBloodType.value = "";
-    elements.profileSmokingStatus.value = "";
-    elements.profileAlcoholUseStatus.value = "";
-}
-
-function resetRecordForm() {
-    elements.recordForm.reset();
-    elements.recordDate.value = todayString();
-    if (state.profiles.length > 0) {
-        elements.recordProfileId.value = String(state.profiles[0].id);
-    }
-}
-
-async function handleProfileSubmit(event) {
-    event.preventDefault();
-
-    const payload = {
-        fullName: stringOrNull(elements.profileName.value),
-        relationToUser: stringOrNull(elements.profileRelationToUser.value),
-        gender: elements.profileGender.value,
-        age: integerOrNull(elements.profileAge.value),
-        birthDate: stringOrNull(elements.profileBirthDate.value),
-        bloodType: stringOrNull(elements.profileBloodType.value),
-        phone: stringOrNull(elements.profilePhone.value),
-        email: stringOrNull(elements.profileEmail.value),
-        occupation: stringOrNull(elements.profileOccupation.value),
-        heightCm: decimalOrNull(elements.profileHeight.value),
-        weightKg: decimalOrNull(elements.profileWeight.value),
-        smokingStatus: stringOrNull(elements.profileSmokingStatus.value),
-        alcoholUseStatus: stringOrNull(elements.profileAlcoholUseStatus.value),
-        familyHistory: stringOrNull(elements.profileFamilyHistory.value),
-        chronicDiseases: stringOrNull(elements.profileChronicDiseases.value),
-        allergies: stringOrNull(elements.profileAllergies.value),
-        currentMedications: stringOrNull(elements.profileCurrentMedications.value),
-        surgeryHistory: stringOrNull(elements.profileSurgeryHistory.value),
-        exerciseHabit: stringOrNull(elements.profileExerciseHabit.value),
-        careGoals: stringOrNull(elements.profileCareGoals.value),
-        emergencyContact: stringOrNull(elements.profileEmergencyContact.value),
-        emergencyContactPhone: stringOrNull(elements.profileEmergencyContactPhone.value),
-        notes: stringOrNull(elements.profileNotes.value)
-    };
-
-    const url = state.editingProfileId ? `/api/profiles/${state.editingProfileId}` : "/api/profiles";
-    const method = state.editingProfileId ? "PUT" : "POST";
-
-    await fetchJson(url, {
-        method,
+async function submitLogin(form) {
+    const payload = formToJson(form);
+    const session = await api("/api/auth/login", {
+        method: "POST",
         body: JSON.stringify(payload)
     });
-
-    closeModal("profileModal");
-    showToast(state.editingProfileId ? "成员档案已更新。" : "成员档案已创建。");
-    await reloadData();
+    state.session = session;
+    state.importResult = null;
+    state.ai.result = null;
+    syncRoute();
+    await loadAllData();
+    render();
+    showToast("登录成功");
 }
 
-async function handleRecordSubmit(event) {
-    event.preventDefault();
-
-    const payload = {
-        profileId: integerOrNull(elements.recordProfileId.value),
-        recordDate: elements.recordDate.value,
-        weightKg: decimalOrNull(elements.recordWeight.value),
-        waistCircumferenceCm: decimalOrNull(elements.recordWaistCircumference.value),
-        systolicPressure: integerOrNull(elements.recordSystolic.value),
-        diastolicPressure: integerOrNull(elements.recordDiastolic.value),
-        heartRate: integerOrNull(elements.recordHeartRate.value),
-        fastingBloodSugar: decimalOrNull(elements.recordBloodSugar.value),
-        postprandialBloodSugar: decimalOrNull(elements.recordPostprandialBloodSugar.value),
-        bodyTemperature: decimalOrNull(elements.recordTemperature.value),
-        bloodOxygen: decimalOrNull(elements.recordOxygen.value),
-        cholesterolTotal: decimalOrNull(elements.recordCholesterol.value),
-        sleepHours: decimalOrNull(elements.recordSleepHours.value),
-        exerciseMinutes: integerOrNull(elements.recordExerciseMinutes.value),
-        stepsCount: integerOrNull(elements.recordStepsCount.value),
-        waterIntakeMl: integerOrNull(elements.recordWaterIntakeMl.value),
-        stressLevel: integerOrNull(elements.recordStressLevel.value),
-        moodScore: integerOrNull(elements.recordMoodScore.value),
-        symptoms: stringOrNull(elements.recordSymptoms.value),
-        medicationTaken: stringOrNull(elements.recordMedicationTaken.value),
-        notes: stringOrNull(elements.recordNotes.value)
-    };
-
-    const url = state.editingRecordId ? `/api/records/${state.editingRecordId}` : "/api/records";
-    const method = state.editingRecordId ? "PUT" : "POST";
-
-    await fetchJson(url, {
-        method,
+async function submitRegister(form) {
+    const payload = formToJson(form);
+    const session = await api("/api/auth/register", {
+        method: "POST",
         body: JSON.stringify(payload)
     });
-
-    closeModal("recordModal");
-    showToast(state.editingRecordId ? "健康记录已更新。" : "健康记录已保存，系统已重新评估风险。");
-    await reloadData();
+    state.session = session;
+    state.importResult = null;
+    state.ai.result = null;
+    syncRoute();
+    await loadAllData();
+    render();
+    showToast("注册成功");
 }
 
-async function handleAlertSubmit(event) {
-    event.preventDefault();
-
-    await fetchJson(`/api/alerts/${state.editingAlertId}/status`, {
+async function submitProfile(form) {
+    await api("/api/profile", {
         method: "PUT",
-        body: JSON.stringify({
-            status: elements.alertStatus.value,
-            handledNote: stringOrNull(elements.alertHandledNote.value)
-        })
+        body: JSON.stringify(formToJson(form, ["age"], ["heightCm", "weightKg"]))
     });
-
-    closeModal("alertModal");
-    showToast("预警状态已更新。");
-    await reloadData();
+    await Promise.all([loadDashboard(), loadProfileDetail(), loadVisualization()]);
+    render();
+    showToast("个人档案已保存");
 }
 
-async function deleteProfile(id) {
-    const profile = state.profiles.find((item) => item.id === id);
-    if (!window.confirm(`确认删除成员“${profile?.fullName || id}”吗？该成员下的记录和预警也会一起删除。`)) {
+async function submitRecord(form) {
+    const formData = formToJson(
+        form,
+        ["systolicPressure", "diastolicPressure", "heartRate", "exerciseMinutes", "stepsCount", "waterIntakeMl", "stressLevel", "moodScore"],
+        ["weightKg", "waistCircumferenceCm", "fastingBloodSugar", "postprandialBloodSugar", "bodyTemperature", "bloodOxygen", "cholesterolTotal", "sleepHours"]
+    );
+    const recordId = form.dataset.recordId;
+    const url = recordId ? `/api/records/${recordId}` : "/api/records";
+    const method = recordId ? "PUT" : "POST";
+    await api(url, { method, body: JSON.stringify(formData) });
+    closeModal();
+    await loadAllData();
+    render();
+    showToast(recordId ? "健康记录已更新" : "健康记录已保存");
+}
+
+async function submitAlert(form) {
+    const alertId = form.dataset.alertId;
+    await api(`/api/alerts/${alertId}/status`, {
+        method: "PUT",
+        body: JSON.stringify(formToJson(form))
+    });
+    closeModal();
+    await Promise.all([loadDashboard(), loadAlerts(), loadProfileDetail()]);
+    render();
+    showToast("预警状态已更新");
+}
+
+async function submitImport(form) {
+    const payload = new FormData(form);
+    const result = await api("/api/imports/health-document", {
+        method: "POST",
+        body: payload,
+        isMultipart: true
+    });
+    state.importResult = result;
+    await loadAllData();
+    render();
+    showToast("文档识别与入档已完成");
+}
+
+async function submitAi(form) {
+    state.ai.loading = true;
+    render();
+    const payload = formToJson(form, ["focusRecordId"]);
+    if (!payload.focusRecordId) {
+        payload.focusRecordId = null;
+    }
+    state.ai.result = await api("/api/ai/analysis", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    });
+    state.ai.loading = false;
+    render();
+    showToast("AI 分析已生成");
+}
+
+function openRecordModal(record = null) {
+    openModal(`
+        <div class="section-head">
+            <h3>${record ? "编辑健康记录" : "新增健康记录"}</h3>
+            <button class="btn-ghost" type="button" data-action="close-modal">关闭</button>
+        </div>
+        <form id="recordForm" class="form-grid" data-record-id="${record?.id || ""}">
+            ${renderRecordFields(record)}
+            <div class="full-span">
+                <button class="btn" type="submit">${record ? "保存修改" : "保存记录"}</button>
+            </div>
+        </form>
+    `);
+}
+
+function openAlertModal(alert) {
+    if (!alert) {
+        showToast("未找到对应预警", true);
         return;
     }
+    openModal(`
+        <div class="section-head">
+            <h3>更新预警状态</h3>
+            <button class="btn-ghost" type="button" data-action="close-modal">关闭</button>
+        </div>
+        <form id="alertForm" class="page-grid" data-alert-id="${alert.id}">
+            <div class="muted-text">${escapeHtml(alert.title)}</div>
+            <label class="form-field">
+                处理状态
+                <select name="status">
+                    ${renderSelectOptions(enumLabels.alertStatus, alert.status)}
+                </select>
+            </label>
+            <label class="form-field">
+                处理说明
+                <textarea name="handledNote">${escapeHtml(alert.handledNote || "")}</textarea>
+            </label>
+            <button class="btn" type="submit">保存状态</button>
+        </form>
+    `);
+}
 
-    await fetchJson(`/api/profiles/${id}`, { method: "DELETE" });
-    if (state.activeProfileDetailId === id) {
-        state.activeProfileDetailId = null;
-        state.activeProfileDetail = null;
-        state.aiConsultation = null;
-        closeModal("profileDetailModal");
-    }
-    showToast("成员档案已删除。");
-    await reloadData();
+function renderRecordFields(record = {}) {
+    return `
+        <label class="form-field"><span>日期</span><input name="recordDate" type="date" value="${escapeAttr(record.recordDate || todayString())}" required></label>
+        <label class="form-field"><span>体重(kg)</span><input name="weightKg" type="number" step="0.01" min="20" max="300" value="${escapeAttr(record.weightKg ?? "")}"></label>
+        <label class="form-field"><span>腰围(cm)</span><input name="waistCircumferenceCm" type="number" step="0.01" min="40" max="200" value="${escapeAttr(record.waistCircumferenceCm ?? "")}"></label>
+        <label class="form-field"><span>收缩压</span><input name="systolicPressure" type="number" min="40" max="250" value="${escapeAttr(record.systolicPressure ?? "")}"></label>
+        <label class="form-field"><span>舒张压</span><input name="diastolicPressure" type="number" min="30" max="180" value="${escapeAttr(record.diastolicPressure ?? "")}"></label>
+        <label class="form-field"><span>心率</span><input name="heartRate" type="number" min="30" max="220" value="${escapeAttr(record.heartRate ?? "")}"></label>
+        <label class="form-field"><span>空腹血糖</span><input name="fastingBloodSugar" type="number" step="0.01" min="2" max="30" value="${escapeAttr(record.fastingBloodSugar ?? "")}"></label>
+        <label class="form-field"><span>餐后血糖</span><input name="postprandialBloodSugar" type="number" step="0.01" min="2" max="30" value="${escapeAttr(record.postprandialBloodSugar ?? "")}"></label>
+        <label class="form-field"><span>体温</span><input name="bodyTemperature" type="number" step="0.1" min="34" max="43" value="${escapeAttr(record.bodyTemperature ?? "")}"></label>
+        <label class="form-field"><span>血氧(%)</span><input name="bloodOxygen" type="number" step="0.1" min="70" max="100" value="${escapeAttr(record.bloodOxygen ?? "")}"></label>
+        <label class="form-field"><span>总胆固醇</span><input name="cholesterolTotal" type="number" step="0.01" min="2" max="15" value="${escapeAttr(record.cholesterolTotal ?? "")}"></label>
+        <label class="form-field"><span>睡眠时长(h)</span><input name="sleepHours" type="number" step="0.1" min="0" max="24" value="${escapeAttr(record.sleepHours ?? "")}"></label>
+        <label class="form-field"><span>运动时长(min)</span><input name="exerciseMinutes" type="number" min="0" max="1440" value="${escapeAttr(record.exerciseMinutes ?? "")}"></label>
+        <label class="form-field"><span>步数</span><input name="stepsCount" type="number" min="0" max="100000" value="${escapeAttr(record.stepsCount ?? "")}"></label>
+        <label class="form-field"><span>饮水量(ml)</span><input name="waterIntakeMl" type="number" min="0" max="10000" value="${escapeAttr(record.waterIntakeMl ?? "")}"></label>
+        <label class="form-field"><span>压力等级</span><input name="stressLevel" type="number" min="1" max="10" value="${escapeAttr(record.stressLevel ?? "")}"></label>
+        <label class="form-field"><span>情绪评分</span><input name="moodScore" type="number" min="1" max="10" value="${escapeAttr(record.moodScore ?? "")}"></label>
+        <label class="form-field full-span"><span>症状</span><textarea name="symptoms">${escapeHtml(record.symptoms || "")}</textarea></label>
+        <label class="form-field full-span"><span>用药记录</span><textarea name="medicationTaken">${escapeHtml(record.medicationTaken || "")}</textarea></label>
+        <label class="form-field full-span"><span>备注</span><textarea name="notes">${escapeHtml(record.notes || "")}</textarea></label>
+    `;
+}
+
+function openModal(html) {
+    elements.modalPanel.innerHTML = html;
+    elements.modalBackdrop.hidden = false;
+    document.body.classList.add("modal-open");
+}
+
+function closeModal() {
+    elements.modalPanel.innerHTML = "";
+    elements.modalBackdrop.hidden = true;
+    document.body.classList.remove("modal-open");
+}
+
+function findRecordById(id) {
+    return state.records.items.find((item) => item.id === id)
+        || state.profileDetail.recentRecords.find((item) => item.id === id)
+        || state.visualization?.latestRecords?.find((item) => item.id === id)
+        || null;
+}
+
+function findAlertById(id) {
+    return state.alerts.items.find((item) => item.id === id)
+        || state.profileDetail.recentAlerts.find((item) => item.id === id)
+        || null;
 }
 
 async function deleteRecord(id) {
-    if (!window.confirm("确认删除这条健康记录吗？该记录关联的预警也会被移除。")) {
+    if (!window.confirm("确认删除这条健康记录吗？相关预警也会一起移除。")) {
         return;
     }
-
-    await fetchJson(`/api/records/${id}`, { method: "DELETE" });
-    showToast("健康记录已删除。");
-    await reloadData();
+    await api(`/api/records/${id}`, { method: "DELETE" });
+    await loadAllData();
+    render();
+    showToast("健康记录已删除");
 }
 
 async function deleteAlert(id) {
     if (!window.confirm("确认删除这条预警信息吗？")) {
         return;
     }
-
-    await fetchJson(`/api/alerts/${id}`, { method: "DELETE" });
-    showToast("预警信息已删除。");
-    await reloadData();
+    await api(`/api/alerts/${id}`, { method: "DELETE" });
+    await Promise.all([loadDashboard(), loadAlerts(), loadProfileDetail()]);
+    render();
+    showToast("预警信息已删除");
 }
 
-async function fetchJson(url, options = {}) {
+function resetToAuth() {
+    state.session = null;
+    state.dashboard = null;
+    state.visualization = null;
+    state.importResult = null;
+    state.ai = { loading: false, result: null };
+    state.route = "dashboard";
+    window.location.hash = "";
+    render();
+}
+
+async function api(url, options = {}) {
     const config = {
-        ...options,
-        headers: {
-            ...(options.body ? { "Content-Type": "application/json" } : {}),
-            ...(options.headers || {})
-        }
+        method: options.method || "GET",
+        body: options.body,
+        credentials: "same-origin",
+        headers: options.isMultipart ? {} : { ...(options.body ? { "Content-Type": "application/json" } : {}) }
     };
 
     const response = await fetch(url, config);
@@ -1286,232 +1239,101 @@ async function fetchJson(url, options = {}) {
     const data = text ? safeJsonParse(text) : null;
 
     if (!response.ok) {
-        const detailText = data?.details ? Object.values(data.details).join("；") : "";
-        const message = data?.message || text || "请求失败";
-        throw new Error(detailText ? `${message}：${detailText}` : message);
+        if (response.status === 401 && !options.suppressUnauthorizedRedirect) {
+            resetToAuth();
+        }
+        const details = data?.details ? Object.values(data.details).join("；") : "";
+        const message = data?.message || "请求失败";
+        throw new Error(details ? `${message}：${details}` : message);
     }
 
     return data;
 }
 
-function setSelectOptions(select, options, value = "") {
-    select.innerHTML = options.map((option) => `
-        <option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>
-    `).join("");
-
-    const normalizedValue = value == null ? "" : String(value);
-    const exists = options.some((option) => option.value === normalizedValue);
-    select.value = exists ? normalizedValue : options[0]?.value || "";
-}
-
-function getTotalPages(totalItems, pageSize) {
-    return Math.max(1, Math.ceil(totalItems / pageSize));
-}
-
-function normalizePage(page, totalItems, pageSize) {
-    return Math.min(Math.max(page, 1), getTotalPages(totalItems, pageSize));
-}
-
-function paginateItems(items, page, pageSize) {
-    const startIndex = (page - 1) * pageSize;
-    return items.slice(startIndex, startIndex + pageSize);
-}
-
-function renderPaginationBar({ container, infoElement, prevButton, nextButton, page, totalItems, pageSize }) {
-    const totalPages = getTotalPages(totalItems, pageSize);
-    const currentPage = normalizePage(page, totalItems, pageSize);
-
-    if (totalItems <= pageSize) {
-        container.hidden = true;
-        infoElement.textContent = totalItems === 0 ? "第 1 / 1 页" : `共 ${totalItems} 条`;
-        prevButton.disabled = true;
-        nextButton.disabled = true;
-        return;
+function formToJson(form, integerFields = [], decimalFields = []) {
+    const formData = new FormData(form);
+    const payload = {};
+    for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+            payload[key] = value;
+            continue;
+        }
+        const normalized = value.trim();
+        if (integerFields.includes(key)) {
+            payload[key] = normalized ? Number.parseInt(normalized, 10) : null;
+        } else if (decimalFields.includes(key)) {
+            payload[key] = normalized ? Number.parseFloat(normalized) : null;
+        } else {
+            payload[key] = normalized || null;
+        }
     }
+    return payload;
+}
 
-    const startIndex = (currentPage - 1) * pageSize + 1;
-    const endIndex = Math.min(currentPage * pageSize, totalItems);
-
-    container.hidden = false;
-    infoElement.textContent = `第 ${currentPage} / ${totalPages} 页 · ${startIndex}-${endIndex} / ${totalItems} 条`;
-    prevButton.disabled = currentPage <= 1;
-    nextButton.disabled = currentPage >= totalPages;
+function renderSelectOptions(labels, selected) {
+    return Object.entries(labels).map(([value, label]) => `
+        <option value="${escapeAttr(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>
+    `).join("");
 }
 
 function renderBadge(value, type) {
     if (!value) {
         return '<span class="badge low">-</span>';
     }
-
-    const labels = type === "risk"
-        ? enumLabels.riskLevel
-        : type === "status"
-            ? enumLabels.alertStatus
-            : enumLabels.alertSeverity;
-
-    const cssClass = type === "status"
-        ? value === "PENDING"
-            ? "high"
-            : value === "REVIEWED"
-                ? "medium"
-                : "low"
-        : value === "LOW"
-            ? "low"
-            : value === "MEDIUM"
-                ? "medium"
-                : value === "HIGH"
-                    ? "high"
-                    : "critical";
-
-    return `<span class="badge ${cssClass}">${escapeHtml(labels[value] || value)}</span>`;
-}
-
-function renderEmptyRow(text, colspan) {
-    return `<tr><td class="empty-state" colspan="${colspan}">${escapeHtml(text)}</td></tr>`;
-}
-
-function renderProfileLink(profile) {
-    return `
-        <button class="table-link" type="button" data-action="view-profile" data-id="${profile.id}">
-            ${escapeHtml(profile.fullName)}
-        </button>
-        <div class="muted-text">${escapeHtml(profile.relationToUser || "家庭成员")}</div>
-    `;
-}
-
-function renderProfileInline(profile) {
-    return `<button class="table-link inline" type="button" data-action="view-profile" data-id="${profile.id}">${escapeHtml(profile.fullName)}</button>`;
-}
-
-function infoItem(label, value) {
-    return `
-        <div class="info-item">
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value || "-")}</strong>
-        </div>
-    `;
-}
-
-function renderSparkline(points, title) {
-    const safePoints = ensureArray(points).filter((point) => point && point.value != null);
-    if (safePoints.length === 0) {
-        return `<div class="empty-state">暂无${escapeHtml(title)}趋势数据</div>`;
+    const labelMap = type === "risk" ? enumLabels.riskLevel : type === "status" ? enumLabels.alertStatus : enumLabels.alertSeverity;
+    let className = "low";
+    if (value === "MEDIUM" || value === "REVIEWED") {
+        className = "medium";
+    } else if (value === "HIGH" || value === "PENDING") {
+        className = "high";
+    } else if (value === "CRITICAL") {
+        className = "critical";
     }
+    return `<span class="badge ${className}">${escapeHtml(labelMap[value] || value)}</span>`;
+}
 
-    const width = 240;
-    const height = 76;
-    const padding = 8;
-    const values = safePoints.map((point) => Number(point.value));
+function buildChartPath(points) {
+    if (!points || points.length === 0) {
+        return "";
+    }
+    const values = points.map((item) => Number(item.value));
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
-    const step = safePoints.length > 1 ? (width - padding * 2) / (safePoints.length - 1) : 0;
-
-    const path = safePoints.map((point, index) => {
+    const width = 320;
+    const height = 160;
+    const padding = 16;
+    const step = points.length > 1 ? (width - padding * 2) / (points.length - 1) : 0;
+    return points.map((item, index) => {
         const x = padding + step * index;
-        const y = height - padding - ((Number(point.value) - min) / range) * (height - padding * 2);
+        const y = height - padding - ((Number(item.value) - min) / range) * (height - padding * 2);
         return `${x},${y}`;
     }).join(" ");
-
-    return `
-        <svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="${escapeAttribute(title)}">
-            <polyline points="${path}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
-        </svg>
-    `;
-}
-
-function formatProfileBasics(profile) {
-    return [
-        enumLabels.gender[profile.gender] || profile.gender,
-        profile.age ? `${profile.age}岁` : null,
-        profile.birthDate || null,
-        formatEnum(profile.bloodType, enumLabels.bloodType)
-    ].filter((item) => item && item !== "-").join(" / ") || "-";
-}
-
-function formatLifestyle(profile) {
-    return [
-        profile.occupation,
-        formatEnum(profile.smokingStatus, enumLabels.smokingStatus),
-        formatEnum(profile.alcoholUseStatus, enumLabels.alcoholUseStatus),
-        truncate(profile.exerciseHabit, 24)
-    ].filter((item) => item && item !== "-").join(" / ") || "-";
-}
-
-function formatMedicalBackground(profile) {
-    return [
-        truncate(profile.chronicDiseases, 18),
-        truncate(profile.currentMedications, 18),
-        truncate(profile.careGoals, 18)
-    ].filter((item) => item && item !== "-").join(" / ") || "-";
-}
-
-function formatContact(profile) {
-    return [
-        profile.phone,
-        profile.email,
-        profile.emergencyContact ? `${profile.emergencyContact}${profile.emergencyContactPhone ? `(${profile.emergencyContactPhone})` : ""}` : null
-    ].filter(Boolean).join(" / ") || "-";
 }
 
 function formatBloodPressure(systolic, diastolic) {
     if (systolic == null && diastolic == null) {
         return "-";
     }
-    if (systolic == null) {
-        return `${diastolic}`;
-    }
-    if (diastolic == null) {
-        return `${systolic}`;
-    }
-    return `${systolic}/${diastolic} mmHg`;
+    return `${systolic ?? "-"} / ${diastolic ?? "-"}`;
 }
 
 function formatBloodSugar(fasting, postprandial) {
     if (fasting == null && postprandial == null) {
         return "-";
     }
-    const fastingText = fasting == null ? "空腹 -" : `空腹 ${formatMetric(fasting, "mmol/L")}`;
-    const postprandialText = postprandial == null ? "餐后 -" : `餐后 ${formatMetric(postprandial, "mmol/L")}`;
-    return `${fastingText} / ${postprandialText}`;
-}
-
-function formatWeightAndWaist(record) {
-    if (record.weightKg == null && record.waistCircumferenceCm == null) {
-        return "-";
-    }
-    return `${formatMetric(record.weightKg, "kg")} / ${formatMetric(record.waistCircumferenceCm, "cm")}`;
-}
-
-function formatSleepAndExercise(record) {
-    if (record.sleepHours == null && record.exerciseMinutes == null && record.stepsCount == null) {
-        return "-";
-    }
-    return `${formatMetric(record.sleepHours, "h")} / ${formatExerciseSummary(record)}`;
-}
-
-function formatExerciseSummary(record) {
-    if (record.exerciseMinutes == null && record.stepsCount == null) {
-        return "-";
-    }
-    return [
-        formatMetric(record.exerciseMinutes, "分钟"),
-        formatMetric(record.stepsCount, "步")
-    ].filter((item) => item !== "-").join(" · ") || "-";
-}
-
-function formatMoodStress(record) {
-    if (record.moodScore == null && record.stressLevel == null) {
-        return "-";
-    }
-    return `${record.moodScore ?? "-"} / ${record.stressLevel ?? "-"} 分`;
+    return `空腹 ${formatMetric(fasting, "mmol/L")} / 餐后 ${formatMetric(postprandial, "mmol/L")}`;
 }
 
 function formatMetric(value, unit = "") {
     if (value == null || value === "") {
         return "-";
     }
-    return unit ? `${formatNumber(value)} ${unit}` : formatNumber(value);
+    const normalized = typeof value === "number" ? value : Number(value);
+    const text = Number.isFinite(normalized)
+        ? new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(normalized)
+        : String(value);
+    return unit ? `${text} ${unit}` : text;
 }
 
 function formatSignedMetric(value, unit = "") {
@@ -1520,104 +1342,46 @@ function formatSignedMetric(value, unit = "") {
     }
     const number = Number(value);
     const prefix = number > 0 ? "+" : "";
-    return unit ? `${prefix}${formatNumber(number)} ${unit}` : `${prefix}${formatNumber(number)}`;
-}
-
-function formatNumber(value) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) {
-        return String(value);
-    }
-    return new Intl.NumberFormat("zh-CN", {
-        maximumFractionDigits: 2
-    }).format(number);
+    return `${prefix}${formatMetric(number, unit)}`;
 }
 
 function formatDate(value) {
     return value ? String(value).slice(0, 10) : "-";
 }
 
-function formatDateTime(value) {
-    return value ? String(value).replace("T", " ").slice(0, 16) : "-";
-}
-
-function formatEnum(value, labels) {
-    return value ? labels[value] || value : "-";
-}
-
-function directionClass(direction) {
-    if (direction === "上升") {
-        return "trend-up";
-    }
-    if (direction === "下降") {
-        return "trend-down";
-    }
-    return "trend-stable";
-}
-
-function enumEntries(labels) {
-    return Object.entries(labels).map(([value, label]) => ({ value, label }));
-}
-
-function truncate(value, maxLength = 24) {
+function truncate(value, length) {
     if (!value) {
         return "-";
     }
-    return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+    return value.length > length ? `${value.slice(0, length)}...` : value;
 }
 
-function stringOrNull(value) {
-    const trimmed = value?.trim();
-    return trimmed ? trimmed : null;
+function todayString() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function integerOrNull(value) {
-    if (value === "" || value == null) {
-        return null;
-    }
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? null : parsed;
-}
-
-function decimalOrNull(value) {
-    if (value === "" || value == null) {
-        return null;
-    }
-    const parsed = Number.parseFloat(value);
-    return Number.isNaN(parsed) ? null : parsed;
-}
-
-function safeJsonParse(value) {
+function safeJsonParse(text) {
     try {
-        return JSON.parse(value);
+        return JSON.parse(text);
     } catch (error) {
         return null;
     }
 }
 
-function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-}
-
-function todayString() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-}
-
 function handleError(error) {
-    showToast(error.message || "操作失败，请稍后重试。", true);
+    state.ai.loading = false;
+    if (elements.app) {
+        render();
+    }
+    showToast(error.message || "操作失败，请稍后重试", true);
 }
-
-let toastTimer = null;
 
 function showToast(message, isError = false) {
     elements.toast.textContent = message;
-    elements.toast.style.background = isError ? "rgba(159, 29, 29, 0.94)" : "rgba(27, 42, 40, 0.92)";
+    elements.toast.style.background = isError ? "rgba(181, 63, 56, 0.96)" : "rgba(31, 41, 51, 0.94)";
     elements.toast.classList.add("visible");
-    window.clearTimeout(toastTimer);
+    clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => {
         elements.toast.classList.remove("visible");
     }, 2600);
@@ -1632,10 +1396,6 @@ function escapeHtml(value) {
         .replaceAll("'", "&#39;");
 }
 
-function escapeAttribute(value) {
+function escapeAttr(value) {
     return escapeHtml(value);
-}
-
-function escapeMultiline(value) {
-    return escapeHtml(value || "-").replaceAll("\n", "<br>");
 }

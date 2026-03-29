@@ -15,8 +15,8 @@ import java.time.LocalDate;
 public class HealthAlert extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "profile_id", nullable = false)
-    private UserProfile profile;
+    @JoinColumn(name = "user_id", nullable = false)
+    private AppUser user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "health_record_id", nullable = false)
@@ -48,12 +48,12 @@ public class HealthAlert extends BaseEntity {
     @Column(length = 500)
     private String handledNote;
 
-    public UserProfile getProfile() {
-        return profile;
+    public AppUser getUser() {
+        return user;
     }
 
-    public void setProfile(UserProfile profile) {
-        this.profile = profile;
+    public void setUser(AppUser user) {
+        this.user = user;
     }
 
     public HealthRecord getHealthRecord() {

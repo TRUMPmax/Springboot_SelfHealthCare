@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -22,6 +23,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException exception) {
         return buildResponse(HttpStatus.NOT_FOUND, exception.getMessage(), null);
+    }
+
+    @ExceptionHandler({BadRequestException.class, ImportProcessingException.class})
+    public ResponseEntity<Map<String, Object>> handleBadRequest(RuntimeException exception) {
+        return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException exception) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, exception.getMessage(), null);
     }
 
     @ExceptionHandler(AiIntegrationException.class)
@@ -41,6 +52,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException exception) {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException exception) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "上传文件过大，请控制在 10MB 以内", null);
     }
 
     @ExceptionHandler(Exception.class)

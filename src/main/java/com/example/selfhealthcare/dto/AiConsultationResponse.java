@@ -6,5 +6,6 @@ public record AiConsultationResponse(
         String model,
         String answer,
         String contextDigest,
+        String disclaimer,
         LocalDateTime generatedAt) {
 }

@@ -3,9 +3,9 @@ package com.example.selfhealthcare.controller;
 import com.example.selfhealthcare.domain.RiskLevel;
 import com.example.selfhealthcare.dto.HealthRecordRequest;
 import com.example.selfhealthcare.dto.HealthRecordResponse;
+import com.example.selfhealthcare.dto.PagedResponse;
 import com.example.selfhealthcare.service.HealthRecordService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,10 +29,11 @@ public class HealthRecordController {
     }
 
     @GetMapping
-    public List<HealthRecordResponse> listRecords(
-            @RequestParam(required = false) Long profileId,
+    public PagedResponse<HealthRecordResponse> listRecords(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) RiskLevel riskLevel) {
-        return healthRecordService.listRecords(profileId, riskLevel);
+        return healthRecordService.listRecords(page, size, riskLevel);
     }
 
     @GetMapping("/{id}")

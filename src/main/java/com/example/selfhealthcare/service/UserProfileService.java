@@ -1,14 +1,12 @@
 package com.example.selfhealthcare.service;
 
+import com.example.selfhealthcare.domain.AppUser;
 import com.example.selfhealthcare.domain.UserProfile;
 import com.example.selfhealthcare.dto.UserProfileRequest;
 import com.example.selfhealthcare.dto.UserProfileResponse;
 import com.example.selfhealthcare.exception.NotFoundException;
-import com.example.selfhealthcare.repository.HealthAlertRepository;
-import com.example.selfhealthcare.repository.HealthRecordRepository;
 import com.example.selfhealthcare.repository.UserProfileRepository;
-import java.util.List;
-import org.springframework.data.domain.Sort;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,61 +14,67 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserProfileService {
 
     private final UserProfileRepository userProfileRepository;
-    private final HealthRecordRepository healthRecordRepository;
-    private final HealthAlertRepository healthAlertRepository;
+    private final AuthService authService;
 
-    public UserProfileService(
-            UserProfileRepository userProfileRepository,
-            HealthRecordRepository healthRecordRepository,
-            HealthAlertRepository healthAlertRepository) {
+    public UserProfileService(UserProfileRepository userProfileRepository, AuthService authService) {
         this.userProfileRepository = userProfileRepository;
-        this.healthRecordRepository = healthRecordRepository;
-        this.healthAlertRepository = healthAlertRepository;
+        this.authService = authService;
     }
 
     @Transactional(readOnly = true)
-    public List<UserProfileResponse> listProfiles() {
-        return userProfileRepository.findAll(Sort.by(Sort.Order.desc("updatedAt"))).stream()
-                .map(UserProfileResponse::from)
-                .toList();
+    public UserProfileResponse getCurrentProfile() {
+        return UserProfileResponse.from(getCurrentProfileEntity());
     }
 
     @Transactional(readOnly = true)
-    public UserProfileResponse getProfile(Long id) {
-        return UserProfileResponse.from(findEntity(id));
+    public Optional<UserProfile> findCurrentProfileOptional() {
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        return userProfileRepository.findByUserId(currentUser.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<UserProfile> findByUserId(Long userId) {
+        return userProfileRepository.findByUserId(userId);
     }
 
     @Transactional
-    public UserProfileResponse createProfile(UserProfileRequest request) {
-        UserProfile profile = new UserProfile();
+    public UserProfileResponse saveCurrentProfile(UserProfileRequest request) {
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        UserProfile profile = userProfileRepository.findByUserId(currentUser.getId())
+                .orElseGet(() -> {
+                    UserProfile entity = new UserProfile();
+                    entity.setUser(currentUser);
+                    return entity;
+                });
         apply(profile, request);
         return UserProfileResponse.from(userProfileRepository.save(profile));
     }
 
     @Transactional
-    public UserProfileResponse updateProfile(Long id, UserProfileRequest request) {
-        UserProfile profile = findEntity(id);
-        apply(profile, request);
-        return UserProfileResponse.from(userProfileRepository.save(profile));
+    public UserProfile save(UserProfile profile) {
+        return userProfileRepository.save(profile);
     }
 
     @Transactional
-    public void deleteProfile(Long id) {
-        UserProfile profile = findEntity(id);
-        healthAlertRepository.deleteByProfileId(profile.getId());
-        healthRecordRepository.deleteByProfileId(profile.getId());
-        userProfileRepository.delete(profile);
+    public UserProfile createShellProfile(AppUser user) {
+        return userProfileRepository.findByUserId(user.getId())
+                .orElseGet(() -> {
+                    UserProfile profile = new UserProfile();
+                    profile.setUser(user);
+                    profile.setFullName(user.getDisplayName());
+                    return userProfileRepository.save(profile);
+                });
     }
 
     @Transactional(readOnly = true)
-    public UserProfile findEntity(Long id) {
-        return userProfileRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("未找到编号为 " + id + " 的健康档案"));
+    public UserProfile getCurrentProfileEntity() {
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        return userProfileRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new NotFoundException("当前账号尚未创建个人档案"));
     }
 
     private void apply(UserProfile profile, UserProfileRequest request) {
         profile.setFullName(normalize(request.fullName()));
-        profile.setRelationToUser(normalize(request.relationToUser()));
         profile.setGender(request.gender());
         profile.setAge(request.age());
         profile.setBirthDate(request.birthDate());

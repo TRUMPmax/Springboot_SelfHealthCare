@@ -1,13 +1,15 @@
 package com.example.selfhealthcare.service;
 
 import com.example.selfhealthcare.domain.AlertStatus;
+import com.example.selfhealthcare.domain.AppUser;
+import com.example.selfhealthcare.domain.HealthRecord;
 import com.example.selfhealthcare.domain.RiskLevel;
 import com.example.selfhealthcare.dto.DashboardSummaryResponse;
 import com.example.selfhealthcare.dto.HealthAlertResponse;
 import com.example.selfhealthcare.dto.HealthRecordResponse;
+import com.example.selfhealthcare.dto.UserProfileResponse;
 import com.example.selfhealthcare.repository.HealthAlertRepository;
 import com.example.selfhealthcare.repository.HealthRecordRepository;
-import com.example.selfhealthcare.repository.UserProfileRepository;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -18,41 +20,57 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DashboardService {
 
-    private final UserProfileRepository userProfileRepository;
+    private final AuthService authService;
+    private final UserProfileService userProfileService;
     private final HealthRecordRepository healthRecordRepository;
     private final HealthAlertRepository healthAlertRepository;
 
     public DashboardService(
-            UserProfileRepository userProfileRepository,
+            AuthService authService,
+            UserProfileService userProfileService,
             HealthRecordRepository healthRecordRepository,
             HealthAlertRepository healthAlertRepository) {
-        this.userProfileRepository = userProfileRepository;
+        this.authService = authService;
+        this.userProfileService = userProfileService;
         this.healthRecordRepository = healthRecordRepository;
         this.healthAlertRepository = healthAlertRepository;
     }
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary() {
+        AppUser currentUser = authService.requireAuthenticatedUser();
+        Long userId = currentUser.getId();
+
         Map<RiskLevel, Long> distribution = new EnumMap<>(RiskLevel.class);
         Arrays.stream(RiskLevel.values()).forEach(level -> distribution.put(level, 0L));
-        healthRecordRepository.findAll().forEach(record ->
+        healthRecordRepository.findByUserIdOrderByRecordDateAscCreatedAtAsc(userId).forEach(record ->
                 distribution.compute(record.getRiskLevel(), (key, value) -> value == null ? 1L : value + 1));
 
-        List<HealthRecordResponse> recentRecords = healthRecordRepository.findTop5ByOrderByRecordDateDescCreatedAtDesc()
-                .stream()
+        List<HealthRecord> recentRecordEntities = healthRecordRepository.findTop5ByUserIdOrderByRecordDateDescCreatedAtDesc(userId);
+        List<HealthRecordResponse> recentRecords = recentRecordEntities.stream()
                 .map(HealthRecordResponse::from)
                 .toList();
 
-        List<HealthAlertResponse> recentAlerts = healthAlertRepository.findTop6ByOrderByCreatedAtDesc()
+        List<HealthAlertResponse> recentAlerts = healthAlertRepository.findTop6ByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(HealthAlertResponse::from)
                 .toList();
 
+        UserProfileResponse profile = userProfileService.findByUserId(userId)
+                .map(UserProfileResponse::from)
+                .orElse(null);
+
+        HealthRecord latestRecord = recentRecordEntities.isEmpty() ? null : recentRecordEntities.getFirst();
+
         return new DashboardSummaryResponse(
-                userProfileRepository.count(),
-                healthRecordRepository.count(),
-                healthAlertRepository.countByStatus(AlertStatus.PENDING),
-                healthRecordRepository.countByRiskLevelIn(List.of(RiskLevel.HIGH, RiskLevel.CRITICAL)),
+                currentUser.getDisplayName(),
+                profile != null,
+                profile == null ? 0 : profile.completionScore(),
+                healthRecordRepository.countByUserId(userId),
+                healthAlertRepository.countByUserIdAndStatus(userId, AlertStatus.PENDING),
+                healthRecordRepository.countByUserIdAndRiskLevelIn(userId, List.of(RiskLevel.HIGH, RiskLevel.CRITICAL)),
+                latestRecord == null ? null : latestRecord.getRiskLevel(),
+                latestRecord == null ? null : latestRecord.getRecordDate(),
                 distribution,
                 recentRecords,
                 recentAlerts);

@@ -11,13 +11,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record HealthRecordRequest(
-        @NotNull(message = "档案编号不能为空")
-        Long profileId,
         @NotNull(message = "记录日期不能为空")
         @PastOrPresent(message = "记录日期不能晚于今天")
         LocalDate recordDate,
-        @DecimalMin(value = "20.0", message = "体重不能小于20公斤")
-        @DecimalMax(value = "300.0", message = "体重不能大于300公斤")
+        @DecimalMin(value = "20.0", message = "体重不能小于20千克")
+        @DecimalMax(value = "300.0", message = "体重不能大于300千克")
         BigDecimal weightKg,
         @DecimalMin(value = "40.0", message = "腰围不能小于40厘米")
         @DecimalMax(value = "200.0", message = "腰围不能大于200厘米")
