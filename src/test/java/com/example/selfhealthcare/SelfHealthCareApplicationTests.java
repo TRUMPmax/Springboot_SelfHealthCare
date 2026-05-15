@@ -2,6 +2,7 @@ package com.example.selfhealthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -141,6 +142,41 @@ class SelfHealthCareApplicationTests {
                 .andExpect(jsonPath("$.archivedRecord.recordDate").value("2026-03-20"))
                 .andExpect(jsonPath("$.matchedFields").isArray())
                 .andExpect(jsonPath("$.disclaimer").isString());
+    }
+
+    @Test
+    void textImportAcceptsLooseOcrLikeHealthMetrics() throws Exception {
+        MockHttpSession session = registerUser("tester_ocr_import");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "ocr-result.txt",
+                "text/plain",
+                """
+                        姓名 OCR用户
+                        性别 男
+                        检查日期 2026年03月22日
+                        腰围 86cm
+                        血压 132 84
+                        脉搏 76
+                        葡萄糖 5.8 mmol/L
+                        血氧 SpO2 98
+                        睡眠 7.5小时
+                        步数 9200
+                        """.getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/imports/health-document")
+                        .file(file)
+                        .session(session))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.archivedRecord.recordDate").value("2026-03-22"))
+                .andExpect(jsonPath("$.archivedRecord.waistCircumferenceCm").value(86))
+                .andExpect(jsonPath("$.archivedRecord.systolicPressure").value(132))
+                .andExpect(jsonPath("$.archivedRecord.diastolicPressure").value(84))
+                .andExpect(jsonPath("$.archivedRecord.heartRate").value(76))
+                .andExpect(jsonPath("$.archivedRecord.fastingBloodSugar").value(5.8))
+                .andExpect(jsonPath("$.archivedRecord.bloodOxygen").value(98))
+                .andExpect(jsonPath("$.archivedRecord.sleepHours").value(7.5))
+                .andExpect(jsonPath("$.archivedRecord.stepsCount").value(9200));
     }
 
     private MockHttpSession registerUser(String username) throws Exception {

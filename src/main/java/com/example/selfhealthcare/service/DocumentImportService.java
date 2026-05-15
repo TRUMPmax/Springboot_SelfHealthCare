@@ -148,19 +148,19 @@ public class DocumentImportService {
 
     private ParsedImportData parseDocument(String text) {
         ParsedImportData data = new ParsedImportData();
-        data.fullName = matchText(text, "(?im)(?:姓名|Name)\\s*[:：]\\s*([^\\r\\n]+)");
+        data.fullName = matchText(text, "(?im)(?:姓名|Name)\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.fullName, "姓名");
 
-        data.gender = parseGender(matchText(text, "(?im)(?:性别|Gender)\\s*[:：]\\s*([^\\r\\n]+)"));
+        data.gender = parseGender(matchText(text, "(?im)(?:性别|Gender)\\s*[:：]?\\s*([^\\r\\n]+)"));
         addMatchedField(data, data.gender, "性别");
 
-        data.age = matchInteger(text, "(?im)(?:年龄|Age)\\s*[:：]\\s*(\\d{1,3})");
+        data.age = matchInteger(text, "(?im)(?:年龄|Age)\\s*[:：]?\\s*(\\d{1,3})");
         addMatchedField(data, data.age, "年龄");
 
-        data.birthDate = matchDate(text, "(?im)(?:出生日期|Birth(?:day| Date)?)\\s*[:：]\\s*([0-9./\\-]{8,12})");
+        data.birthDate = matchDate(text, "(?im)(?:出生日期|Birth(?:day| Date)?)\\s*[:：]?\\s*([0-9年月日./\\-]{8,16})");
         addMatchedField(data, data.birthDate, "出生日期");
 
-        data.bloodType = parseBloodType(matchText(text, "(?im)(?:血型|Blood Type)\\s*[:：]\\s*([^\\r\\n]+)"));
+        data.bloodType = parseBloodType(matchText(text, "(?im)(?:血型|Blood Type)\\s*[:：]?\\s*([^\\r\\n]+)"));
         addMatchedField(data, data.bloodType, "血型");
 
         data.heightCm = matchDecimal(text, "(?im)(?:身高|Height)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:cm|厘米)?");
@@ -169,24 +169,37 @@ public class DocumentImportService {
         data.weightKg = matchDecimal(text, "(?im)(?:体重|Weight)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:kg|千克)?");
         addMatchedField(data, data.weightKg, "体重");
 
+        data.waistCircumferenceCm = matchDecimal(
+                text,
+                "(?im)(?:腰围|腰腹围|Waist(?: Circumference)?)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:cm|厘米)?");
+        addMatchedField(data, data.waistCircumferenceCm, "腰围");
+
         data.recordDate = firstNonNull(
-                matchDate(text, "(?im)(?:检查日期|记录日期|体检日期|采集日期)\\s*[:：]\\s*([0-9./\\-]{8,12})"),
-                matchDate(text, "(?im)(?:Date)\\s*[:：]\\s*([0-9./\\-]{8,12})"),
+                matchDate(text, "(?im)(?:检查日期|记录日期|体检日期|采集日期|检测日期)\\s*[:：]?\\s*([0-9年月日./\\-]{8,16})"),
+                matchDate(text, "(?im)(?:Date)\\s*[:：]?\\s*([0-9年月日./\\-]{8,16})"),
                 LocalDate.now());
         addMatchedField(data, data.recordDate, "记录日期");
 
-        Integer systolic = matchInteger(text, "(?im)(?:血压|Blood Pressure)\\s*[:：]?\\s*(\\d{2,3})\\s*[/／]\\s*(\\d{2,3})", 1);
-        Integer diastolic = matchInteger(text, "(?im)(?:血压|Blood Pressure)\\s*[:：]?\\s*(\\d{2,3})\\s*[/／]\\s*(\\d{2,3})", 2);
+        Integer systolic = firstNonNull(
+                matchInteger(text, "(?im)(?:血压|Blood Pressure|BP)\\s*[:：]?\\s*(\\d{2,3})\\s*[/／]\\s*(\\d{2,3})", 1),
+                matchInteger(text, "(?im)(?:血压|Blood Pressure|BP)\\s*[:：]?\\s*(\\d{2,3})\\s+(\\d{2,3})", 1),
+                matchInteger(text, "(?im)(?:收缩压|高压|Systolic)\\s*[:：]?\\s*(\\d{2,3})"));
+        Integer diastolic = firstNonNull(
+                matchInteger(text, "(?im)(?:血压|Blood Pressure|BP)\\s*[:：]?\\s*(\\d{2,3})\\s*[/／]\\s*(\\d{2,3})", 2),
+                matchInteger(text, "(?im)(?:血压|Blood Pressure|BP)\\s*[:：]?\\s*(\\d{2,3})\\s+(\\d{2,3})", 2),
+                matchInteger(text, "(?im)(?:舒张压|低压|Diastolic)\\s*[:：]?\\s*(\\d{2,3})"));
         data.systolicPressure = systolic;
         data.diastolicPressure = diastolic;
         if (systolic != null || diastolic != null) {
             data.matchedFields.add("血压");
         }
 
-        data.heartRate = matchInteger(text, "(?im)(?:心率|Heart Rate)\\s*[:：]?\\s*(\\d{2,3})");
+        data.heartRate = matchInteger(text, "(?im)(?:心率|脉搏|Heart Rate|Pulse)\\s*[:：]?\\s*(\\d{2,3})");
         addMatchedField(data, data.heartRate, "心率");
 
-        data.fastingBloodSugar = matchDecimal(text, "(?im)(?:空腹血糖|Fasting(?: Blood)? Glucose)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
+        data.fastingBloodSugar = firstNonNull(
+                matchDecimal(text, "(?im)(?:空腹血糖|Fasting(?: Blood)? Glucose)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)"),
+                matchDecimal(text, "(?im)(?:血糖|葡萄糖|Glucose)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)"));
         addMatchedField(data, data.fastingBloodSugar, "空腹血糖");
 
         data.postprandialBloodSugar = matchDecimal(
@@ -194,13 +207,13 @@ public class DocumentImportService {
                 "(?im)(?:餐后血糖|Post(?:prandial|[- ]Meal)(?: Blood)? Glucose)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
         addMatchedField(data, data.postprandialBloodSugar, "餐后血糖");
 
-        data.bodyTemperature = matchDecimal(text, "(?im)(?:体温|Temperature)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
+        data.bodyTemperature = matchDecimal(text, "(?im)(?:体温|Temperature|Temp)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
         addMatchedField(data, data.bodyTemperature, "体温");
 
-        data.bloodOxygen = matchDecimal(text, "(?im)(?:血氧|Blood Oxygen|SpO2)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
+        data.bloodOxygen = matchDecimal(text, "(?im)(?:血氧|Blood Oxygen|SpO2|SpO₂)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
         addMatchedField(data, data.bloodOxygen, "血氧");
 
-        data.cholesterolTotal = matchDecimal(text, "(?im)(?:总胆固醇|Cholesterol)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
+        data.cholesterolTotal = matchDecimal(text, "(?im)(?:总胆固醇|胆固醇|Cholesterol|TC)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
         addMatchedField(data, data.cholesterolTotal, "总胆固醇");
 
         data.sleepHours = matchDecimal(text, "(?im)(?:睡眠(?:时长)?|Sleep)\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)");
@@ -221,22 +234,22 @@ public class DocumentImportService {
         data.moodScore = matchInteger(text, "(?im)(?:情绪(?:评分)?|Mood)\\s*[:：]?\\s*(\\d{1,2})");
         addMatchedField(data, data.moodScore, "情绪评分");
 
-        data.familyHistory = matchText(text, "(?im)(?:家族病史|Family History)\\s*[:：]\\s*([^\\r\\n]+)");
+        data.familyHistory = matchText(text, "(?im)(?:家族病史|Family History)\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.familyHistory, "家族病史");
 
-        data.chronicDiseases = matchText(text, "(?im)(?:慢性病史|Chronic Diseases?)\\s*[:：]\\s*([^\\r\\n]+)");
+        data.chronicDiseases = matchText(text, "(?im)(?:慢性病史|Chronic Diseases?)\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.chronicDiseases, "慢性病史");
 
-        data.allergies = matchText(text, "(?im)(?:过敏信息|Allerg(?:y|ies))\\s*[:：]\\s*([^\\r\\n]+)");
+        data.allergies = matchText(text, "(?im)(?:过敏信息|Allerg(?:y|ies))\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.allergies, "过敏信息");
 
-        data.currentMedications = matchText(text, "(?im)(?:当前用药|Medication(?:s)?|Current Medications?)\\s*[:：]\\s*([^\\r\\n]+)");
+        data.currentMedications = matchText(text, "(?im)(?:当前用药|Medication(?:s)?|Current Medications?)\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.currentMedications, "当前用药");
 
-        data.symptoms = matchText(text, "(?im)(?:症状|Symptoms?)\\s*[:：]\\s*([^\\r\\n]+)");
+        data.symptoms = matchText(text, "(?im)(?:症状|Symptoms?)\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.symptoms, "症状");
 
-        data.notes = matchText(text, "(?im)(?:备注|Notes?)\\s*[:：]\\s*([^\\r\\n]+)");
+        data.notes = matchText(text, "(?im)(?:备注|Notes?)\\s*[:：]?\\s*([^\\r\\n]+)");
         addMatchedField(data, data.notes, "备注");
 
         return data;
@@ -375,12 +388,19 @@ public class DocumentImportService {
         if (value == null) {
             return null;
         }
+        String normalized = value
+                .replace('年', '-')
+                .replace('月', '-')
+                .replace("日", "")
+                .trim();
         for (DateTimeFormatter formatter : List.of(
                 DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+                DateTimeFormatter.BASIC_ISO_DATE,
+                DateTimeFormatter.ofPattern("yyyy-M-d"),
                 DateTimeFormatter.ofPattern("yyyy/M/d"),
                 DateTimeFormatter.ofPattern("yyyy.M.d"))) {
             try {
-                return LocalDate.parse(value, formatter);
+                return LocalDate.parse(normalized, formatter);
             } catch (DateTimeParseException ignored) {
             }
         }

@@ -128,19 +128,25 @@ async function restoreSession() {
     if (session?.authenticated) {
         state.session = session;
         syncRoute();
-        await loadAllData();
+        await loadAllData({ tolerateErrors: true });
     } else {
         state.session = null;
         state.route = "dashboard";
     }
 }
 
-function handleHashRoute() {
+async function handleHashRoute() {
     if (!state.session) {
         return;
     }
     syncRoute();
     render();
+    try {
+        await loadRouteData(state.route);
+        render();
+    } catch (error) {
+        handleError(error);
+    }
 }
 
 function syncRoute() {
@@ -151,14 +157,53 @@ function syncRoute() {
     }
 }
 
-async function loadAllData() {
-    await Promise.all([
-        loadDashboard(),
-        loadProfileDetail(),
-        loadRecords(),
-        loadAlerts(),
-        loadVisualization()
-    ]);
+async function loadAllData(options = {}) {
+    const loaders = [
+        loadDashboard,
+        loadProfileDetail,
+        loadRecords,
+        loadAlerts,
+        loadVisualization
+    ];
+
+    if (!options.tolerateErrors) {
+        await Promise.all(loaders.map((loader) => loader()));
+        return [];
+    }
+
+    const results = await Promise.allSettled(loaders.map((loader) => loader()));
+    const failures = results
+        .filter((result) => result.status === "rejected")
+        .map((result) => result.reason);
+    if (failures.length) {
+        console.warn("部分数据加载失败", failures);
+    }
+    return failures;
+}
+
+async function loadRouteData(route = state.route) {
+    switch (route) {
+        case "dashboard":
+            await loadDashboard();
+            break;
+        case "profile":
+            await loadProfileDetail();
+            break;
+        case "records":
+            await loadRecords();
+            break;
+        case "alerts":
+            await loadAlerts();
+            break;
+        case "visualization":
+            await loadVisualization();
+            break;
+        case "ai":
+            await loadProfileDetail();
+            break;
+        default:
+            break;
+    }
 }
 
 async function loadDashboard() {
@@ -1012,7 +1057,7 @@ async function submitLogin(form) {
     state.importResult = null;
     state.ai.result = null;
     syncRoute();
-    await loadAllData();
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("登录成功");
 }
@@ -1027,7 +1072,7 @@ async function submitRegister(form) {
     state.importResult = null;
     state.ai.result = null;
     syncRoute();
-    await loadAllData();
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("注册成功");
 }
@@ -1037,7 +1082,7 @@ async function submitProfile(form) {
         method: "PUT",
         body: JSON.stringify(formToJson(form, ["age"], ["heightCm", "weightKg"]))
     });
-    await Promise.all([loadDashboard(), loadProfileDetail(), loadVisualization()]);
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("个人档案已保存");
 }
@@ -1053,7 +1098,7 @@ async function submitRecord(form) {
     const method = recordId ? "PUT" : "POST";
     await api(url, { method, body: JSON.stringify(formData) });
     closeModal();
-    await loadAllData();
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast(recordId ? "健康记录已更新" : "健康记录已保存");
 }
@@ -1065,7 +1110,7 @@ async function submitAlert(form) {
         body: JSON.stringify(formToJson(form))
     });
     closeModal();
-    await Promise.all([loadDashboard(), loadAlerts(), loadProfileDetail()]);
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("预警状态已更新");
 }
@@ -1078,7 +1123,7 @@ async function submitImport(form) {
         isMultipart: true
     });
     state.importResult = result;
-    await loadAllData();
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("文档识别与入档已完成");
 }
@@ -1100,13 +1145,14 @@ async function submitAi(form) {
 }
 
 function openRecordModal(record = null) {
+    const recordData = record || {};
     openModal(`
         <div class="section-head">
             <h3>${record ? "编辑健康记录" : "新增健康记录"}</h3>
             <button class="btn-ghost" type="button" data-action="close-modal">关闭</button>
         </div>
         <form id="recordForm" class="form-grid" data-record-id="${record?.id || ""}">
-            ${renderRecordFields(record)}
+            ${renderRecordFields(recordData)}
             <div class="full-span">
                 <button class="btn" type="submit">${record ? "保存修改" : "保存记录"}</button>
             </div>
@@ -1196,7 +1242,7 @@ async function deleteRecord(id) {
         return;
     }
     await api(`/api/records/${id}`, { method: "DELETE" });
-    await loadAllData();
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("健康记录已删除");
 }
@@ -1206,7 +1252,7 @@ async function deleteAlert(id) {
         return;
     }
     await api(`/api/alerts/${id}`, { method: "DELETE" });
-    await Promise.all([loadDashboard(), loadAlerts(), loadProfileDetail()]);
+    await loadAllData({ tolerateErrors: true });
     render();
     showToast("预警信息已删除");
 }
